@@ -52,6 +52,7 @@
             this.cbWorkSheet.Name = "cbWorkSheet";
             this.cbWorkSheet.Size = new System.Drawing.Size(238, 21);
             this.cbWorkSheet.TabIndex = 3;
+            this.cbWorkSheet.SelectedIndexChanged += new System.EventHandler(this.cbWorkSheet_SelectedIndexChanged);
             this.cbWorkSheet.SelectionChangeCommitted += new System.EventHandler(this.cbWorkSheet_SelectionChangeCommitted);
             // 
             // clbColonne
@@ -64,6 +65,7 @@
             this.clbColonne.Name = "clbColonne";
             this.clbColonne.Size = new System.Drawing.Size(360, 214);
             this.clbColonne.TabIndex = 4;
+            this.clbColonne.SelectedIndexChanged += new System.EventHandler(this.clbColonne_SelectedIndexChanged);
             // 
             // btnConferma
             // 

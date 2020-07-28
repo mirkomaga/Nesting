@@ -33,13 +33,15 @@
             this.lblExcelS = new System.Windows.Forms.Label();
             this.btnExcel = new System.Windows.Forms.Button();
             this.stsBott = new System.Windows.Forms.StatusStrip();
-            this.toolStripProgressBar1 = new System.Windows.Forms.ToolStripProgressBar();
+            this.tspb = new System.Windows.Forms.ToolStripProgressBar();
             this.lv = new System.Windows.Forms.ListView();
             this.boxInventor = new System.Windows.Forms.GroupBox();
             this.lblInventorD = new System.Windows.Forms.Label();
             this.btnInventor = new System.Windows.Forms.Button();
             this.lblInvetorS = new System.Windows.Forms.Label();
             this.button1 = new System.Windows.Forms.Button();
+            this.chOperazione = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.chStato = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.boxExcel.SuspendLayout();
             this.stsBott.SuspendLayout();
             this.boxInventor.SuspendLayout();
@@ -94,28 +96,38 @@
             // stsBott
             // 
             this.stsBott.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.toolStripProgressBar1});
+            this.tspb});
             this.stsBott.Location = new System.Drawing.Point(0, 480);
             this.stsBott.Name = "stsBott";
             this.stsBott.Size = new System.Drawing.Size(363, 22);
             this.stsBott.TabIndex = 1;
             this.stsBott.Text = "statusStrip1";
             // 
-            // toolStripProgressBar1
+            // tspb
             // 
-            this.toolStripProgressBar1.Name = "toolStripProgressBar1";
-            this.toolStripProgressBar1.Size = new System.Drawing.Size(100, 16);
+            this.tspb.Name = "tspb";
+            this.tspb.Size = new System.Drawing.Size(100, 16);
+            this.tspb.Click += new System.EventHandler(this.toolStripProgressBar1_Click);
             // 
             // lv
             // 
+            this.lv.AllowDrop = true;
+            this.lv.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.chOperazione,
+            this.chStato});
             this.lv.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.lv.FullRowSelect = true;
+            this.lv.GridLines = true;
             this.lv.HideSelection = false;
-            this.lv.LabelWrap = false;
             this.lv.Location = new System.Drawing.Point(0, 285);
             this.lv.Name = "lv";
+            this.lv.ShowItemToolTips = true;
             this.lv.Size = new System.Drawing.Size(363, 195);
             this.lv.TabIndex = 2;
             this.lv.UseCompatibleStateImageBehavior = false;
+            this.lv.View = System.Windows.Forms.View.Details;
+            this.lv.DrawColumnHeader += new System.Windows.Forms.DrawListViewColumnHeaderEventHandler(this.lv_DrawColumnHeader);
+            this.lv.DrawSubItem += new System.Windows.Forms.DrawListViewSubItemEventHandler(this.lv_DrawSubItem);
             // 
             // boxInventor
             // 
@@ -152,6 +164,7 @@
             this.btnInventor.TabIndex = 0;
             this.btnInventor.Text = "Avvia";
             this.btnInventor.UseVisualStyleBackColor = false;
+            this.btnInventor.Click += new System.EventHandler(this.btnInventor_Click);
             // 
             // lblInvetorS
             // 
@@ -173,6 +186,16 @@
             this.button1.TabIndex = 3;
             this.button1.Text = "Sfoglia";
             this.button1.UseVisualStyleBackColor = false;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
+            // chOperazione
+            // 
+            this.chOperazione.Text = "Operazione";
+            this.chOperazione.Width = 299;
+            // 
+            // chStato
+            // 
+            this.chStato.Text = "Stato";
             // 
             // frm
             // 
@@ -204,13 +227,15 @@
         private System.Windows.Forms.Label lblExcelS;
         private System.Windows.Forms.Button btnExcel;
         private System.Windows.Forms.StatusStrip stsBott;
-        private System.Windows.Forms.ToolStripProgressBar toolStripProgressBar1;
         private System.Windows.Forms.GroupBox boxInventor;
         private System.Windows.Forms.Button btnInventor;
         private System.Windows.Forms.Label lblInventorD;
         private System.Windows.Forms.Label lblInvetorS;
         private System.Windows.Forms.Button button1;
         public System.Windows.Forms.ListView lv;
+        public System.Windows.Forms.ToolStripProgressBar tspb;
+        private System.Windows.Forms.ColumnHeader chOperazione;
+        private System.Windows.Forms.ColumnHeader chStato;
     }
 }
 
