@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(frm));
             this.boxExcel = new System.Windows.Forms.GroupBox();
             this.lblExcelD = new System.Windows.Forms.Label();
             this.lblExcelS = new System.Windows.Forms.Label();
@@ -206,6 +207,7 @@
             this.Controls.Add(this.lv);
             this.Controls.Add(this.stsBott);
             this.Controls.Add(this.boxExcel);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "frm";
             this.Text = "Nesting from Excel";
             this.Load += new System.EventHandler(this.frm_Load);

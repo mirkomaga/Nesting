@@ -46,14 +46,18 @@ namespace Nesting
 
         private void btnInventor_Click(object sender, EventArgs e)
         {
-            if (!string.IsNullOrEmpty(frm.pathPart))
+            if (!string.IsNullOrEmpty(frm.pathPart) && OptionExcel.results != null)
             {
                 List<Rettangolo> oggetto = createObject();
-                InventorClass.CreateSM(oggetto, tspb, lv, frm.pathPart);
+
+                if (oggetto.Count > 0)
+                {
+                    InventorClass.CreateSM(oggetto, tspb, lv, frm.pathPart);
+                }
             }
             else
             {
-                MessageBox.Show("Scegliere la cartella di destinazione", "Attenzione");
+                MessageBox.Show("Scegliere la cartella di destinazione e selezionare l'Excel", "Attenzione");
             }
         }
 
@@ -65,7 +69,16 @@ namespace Nesting
             {
                 foreach( DataRow rw in OptionExcel.results.Rows)
                 {
-                    results.Add(new Rettangolo(rw, OptionExcel.results));
+                    Rettangolo rett = new Rettangolo(rw, OptionExcel.results);
+                    if (rett.status == true)
+                    {
+                        results.Add(rett);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Non sono stati selezionati i dati necessari", "Attenzione");
+                        break;
+                    }
                 }
             }
 

@@ -4,19 +4,20 @@ using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using System.Windows.Shapes;
 
 namespace Nesting
 {
     class Rettangolo
     {
-        public Inventor.Polyline2d polilinea;
         public int pezzi;
         public double lunghezza;
         public double sviluppo;
         public string commento;
         public string filename;
         public string marca;
+        public bool status = true;
 
         public Rettangolo(DataRow dato, DataTable dt) 
         {
@@ -31,17 +32,29 @@ namespace Nesting
             {
                 filename = (index + 1).ToString() +"-"+ (string)dict["AREA"];
             }
+            else
+            {
+                status = false;
+            }
 
             //sviluppo = sv
             if (dict.ContainsKey("SV"))
             {
                 sviluppo = (double)(Convert.ToDouble((string)dict["SV"]));
             }
+            else
+            {
+                status = false;
+            }
 
             //lunghezza = L di taglio
             if (dict.ContainsKey("L di taglio"))
             {
                 lunghezza = (double)(Convert.ToDouble(dict["L di taglio"]));
+            }
+            else
+            {
+                status = false;
             }
 
             //marca = casing type horizontal
@@ -54,11 +67,6 @@ namespace Nesting
             if (dict.ContainsKey("NR"))
             {
                 pezzi = (int)(Convert.ToInt64(dict["NR"]));
-            }
-
-            if (lunghezza != null && sviluppo != null)
-            {
-                polilinea = InventorClass.creoPoliLinea(lunghezza, sviluppo);
             }
         }
     }

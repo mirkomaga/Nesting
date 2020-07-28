@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OptionExcel));
             this.lblWorkSheets = new System.Windows.Forms.Label();
             this.cbWorkSheet = new System.Windows.Forms.ComboBox();
             this.clbColonne = new System.Windows.Forms.CheckedListBox();
@@ -86,6 +87,7 @@
             this.Controls.Add(this.clbColonne);
             this.Controls.Add(this.cbWorkSheet);
             this.Controls.Add(this.lblWorkSheets);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.Name = "OptionExcel";
             this.Text = "OptionExcel";
             this.Load += new System.EventHandler(this.OptionExcel_Load);
