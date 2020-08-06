@@ -15,15 +15,17 @@ namespace Nesting
         [STAThread]
         static void Main()
         {
+            InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\Thickness\\LFM");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new frm());
+            //Application.Run(new frm());
+            Application.Run(new ThicknessFrm());
         }
     }
 
     public static class GenericFunction
     {
-        public static string chooseFolder()
+        public static string chooseFolder(bool write = true)
         {
             using (var fbd = new FolderBrowserDialog())
             {
@@ -33,18 +35,21 @@ namespace Nesting
                 {
                     string[] files = Directory.GetFiles(fbd.SelectedPath);
 
-                    if (files.Length > 0)
+                    if (write)
                     {
-                        MessageBoxButtons buttons = MessageBoxButtons.YesNo;
-                        DialogResult flrCheck = MessageBox.Show("Cartella non vuota, i file duplicati verranno sostituiti", "Attenzione", buttons);
-                        if (flrCheck == DialogResult.Yes)
+                        if (files.Length > 0)
                         {
-                            //this.Close();
-                        }
-                        else
-                        {
-                            //simulo il click
-                            chooseFolder();
+                            MessageBoxButtons buttons = MessageBoxButtons.YesNo;
+                            DialogResult flrCheck = MessageBox.Show("Cartella non vuota, i file duplicati verranno sostituiti", "Attenzione", buttons);
+                            if (flrCheck == DialogResult.Yes)
+                            {
+                                //this.Close();
+                            }
+                            else
+                            {
+                                //simulo il click
+                                chooseFolder();
+                            }
                         }
                     }
                     return fbd.SelectedPath;
@@ -84,6 +89,11 @@ namespace Nesting
             }
 
             return filePath;
+        }
+        public static int countFiles(string path, string extension)
+        {
+            int fCount = Directory.GetFiles(path, extension, SearchOption.AllDirectories).Length;
+            return fCount;
         }
     }
 }

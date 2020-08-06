@@ -36,13 +36,13 @@
             this.stsBott = new System.Windows.Forms.StatusStrip();
             this.tspb = new System.Windows.Forms.ToolStripProgressBar();
             this.lv = new System.Windows.Forms.ListView();
+            this.chOperazione = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.chStato = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.boxInventor = new System.Windows.Forms.GroupBox();
             this.lblInventorD = new System.Windows.Forms.Label();
             this.btnInventor = new System.Windows.Forms.Button();
             this.lblInvetorS = new System.Windows.Forms.Label();
             this.button1 = new System.Windows.Forms.Button();
-            this.chOperazione = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.chStato = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.boxExcel.SuspendLayout();
             this.stsBott.SuspendLayout();
             this.boxInventor.SuspendLayout();
@@ -130,6 +130,15 @@
             this.lv.DrawColumnHeader += new System.Windows.Forms.DrawListViewColumnHeaderEventHandler(this.lv_DrawColumnHeader);
             this.lv.DrawSubItem += new System.Windows.Forms.DrawListViewSubItemEventHandler(this.lv_DrawSubItem);
             // 
+            // chOperazione
+            // 
+            this.chOperazione.Text = "Operazione";
+            this.chOperazione.Width = 299;
+            // 
+            // chStato
+            // 
+            this.chStato.Text = "Stato";
+            // 
             // boxInventor
             // 
             this.boxInventor.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
@@ -188,15 +197,6 @@
             this.button1.Text = "Sfoglia";
             this.button1.UseVisualStyleBackColor = false;
             this.button1.Click += new System.EventHandler(this.button1_Click);
-            // 
-            // chOperazione
-            // 
-            this.chOperazione.Text = "Operazione";
-            this.chOperazione.Width = 299;
-            // 
-            // chStato
-            // 
-            this.chStato.Text = "Stato";
             // 
             // frm
             // 
