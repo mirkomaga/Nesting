@@ -411,18 +411,18 @@ namespace Nesting
             if (iApp != null)
             {
 
-                string[] listFiles = System.IO.Directory.GetFiles(@path, "*.ipt");
+                //string[] listFiles = System.IO.Directory.GetFiles(@path, "*.ipt");
 
-                int counter = 0;
-                foreach (string file in listFiles)
-                {
-                    counter++;
+                //int counter = 0;
+                //foreach (string file in listFiles)
+                //{
+                //    counter++;
 
-                    if (System.IO.Path.GetExtension(file) == ".ipt")
-                    {
-                        PartDocument oSheetMetalDoc = (PartDocument)iApp.Documents.Open(@file);
+                //    if (System.IO.Path.GetExtension(file) == ".ipt")
+                //    {
+                        //PartDocument oSheetMetalDoc = (PartDocument)iApp.Documents.Open(@file);
 
-                        //PartDocument oSheetMetalDoc = (PartDocument)iApp.Documents.Open(@"C:\\Users\\edgelocal\\Desktop\\testL.ipt");
+                        PartDocument oSheetMetalDoc = (PartDocument)iApp.Documents.Open(@"C:\\Users\\Mirko Magalotti\\Documents\\tttttttipt.ipt");
                         InventorClass.clearAllSup(oSheetMetalDoc);
 
                         iApp.ActiveView.GoHome();
@@ -505,8 +505,8 @@ namespace Nesting
                         iApp.ActiveView.GoHome();
                         //oSheetMetalDoc.Save();
                         oSheetMetalDoc.Close();
-                    }
-                }
+                    //}
+                //}
             }
         }
         public static void offsetSketch(PlanarSketch oSketch, List<SketchEntity> listaLinee)
@@ -542,24 +542,7 @@ namespace Nesting
                 bNaturalOffsetDir = false;
             }
 
-            ObjectCollection ll = iApp.TransientObjects.CreateObjectCollection();
-
-            foreach(SketchEntity e in listaLinee)
-            {
-                if(e.Type == ObjectTypeEnum.kSketchLineObject)
-                {
-                    SketchLine skl = (SketchLine)e;
-                    ll.Add(skl);
-                }
-            }
-            foreach (SketchEntity e in listaLinee)
-            {
-                if (e.Type == ObjectTypeEnum.kSketchArcObject)
-                {
-                    SketchArc ska = (SketchArc)e;
-                    ll.Add(ska);
-                }
-            }
+            ObjectCollection ll = InventorClass.riordinoLinee(listaLinee);
 
             SketchEntitiesEnumerator oSSketchEntitiesEnum = oSketch.OffsetSketchEntitiesUsingDistance(ll, 1, bNaturalOffsetDir, false);
         }
@@ -766,6 +749,63 @@ namespace Nesting
             //        Console.WriteLine("Obj sconosciuto");
             //    }
             //}
+        }
+        public static ObjectCollection riordinoLinee(List<SketchEntity> entita)
+        {
+
+            ObjectCollection results = iApp.TransientObjects.CreateObjectCollection();
+
+            //devo partire da una linea e poi addo le altre
+            SketchLine ent;
+            SketchPoint startpoint = null;
+            SketchPoint endPoint = null;
+            foreach (SketchEntity e in entita)
+            {
+                if (e.Type == ObjectTypeEnum.kSketchLineObject)
+                {
+                    ent = (SketchLine) e;
+                    startpoint = ent.StartSketchPoint;
+                    endPoint = ent.EndSketchPoint;
+                }
+                //if (e.Type == ObjectTypeEnum.kSketchArcObject)
+                //{
+                //    SketchArc ent = (SketchArc)e;
+                //    SketchPoint arcStart = ent.StartSketchPoint;
+                //    SketchPoint arcEnd = ent.EndSketchPoint;
+                //}
+            }
+
+            // ricompongo la sagoma
+            // cerco il punto finale uguale al prox iniziale
+            bool ric = true;
+            while (ric == true)
+            {
+                foreach(SketchEntity e in entita)
+                {
+                    SketchPoint sp = null;
+                    SketchPoint ep = null;
+
+                    switch (e.Type)
+                    {
+                        case ObjectTypeEnum.kSketchLineObject:
+                            SketchLine enty = (SketchLine) e;
+                            sp = (SketchPoint)enty.StartSketchPoint;
+                            ep = (SketchPoint)enty.EndSketchPoint;
+                            break;
+                        case ObjectTypeEnum.kSketchArcObject:
+                            SketchArc entyA = (SketchArc) e;
+                            sp = (SketchPoint)entyA.StartSketchPoint;
+                            ep = (SketchPoint)entyA.EndSketchPoint;
+                            break;
+                    }
+
+                    Console.WriteLine(sp == endPoint);
+
+                }
+                ric = false;
+            }
+
+            return results;
         }
     }
 }
