@@ -351,6 +351,10 @@ namespace Nesting
                     }
                 }
             }
+            if (!changed)
+            {
+                throw new Exception("Spessore non trovato.");
+            }
         }
         private static double getDistanceFromFace(Face fc)
         {
@@ -420,6 +424,7 @@ namespace Nesting
                     toSelect = "Aluminium THK 5.0mm";
                     break;
                 default:
+                    //toSelect = "Default_mm";
                     Console.WriteLine("SONO ENTRATO IN DEFAULT");
                     break;
             }
@@ -480,10 +485,9 @@ namespace Nesting
                             oSheetMetalDoc.SubType = "{9C464203-9BAE-11D3-8BAD-0060B0CE6BB4}";
                         }
 
-                        SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oSheetMetalDoc.ComponentDefinition;
-                        
                         try
                         {
+                            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oSheetMetalDoc.ComponentDefinition;
                             WorkPlane checkPlane = oCompDef.WorkPlanes["wpReference"];
 
                             iApp.ActiveView.GoHome();
@@ -492,6 +496,20 @@ namespace Nesting
                         }
                         catch
                         {
+
+                            //imposto spessore
+                            try
+                            {
+                                InventorClass.changeThksOpenFile(oSheetMetalDoc);
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e);
+                            }
+
+                            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oSheetMetalDoc.ComponentDefinition;
+                            Console.WriteLine("Bends Count :" + oCompDef.Bends.Count);
+                            
                             List<Face> faces = findFace(oSheetMetalDoc);
 
                             FaceCollection facesPart = iApp.TransientObjects.CreateFaceCollection();
@@ -507,7 +525,6 @@ namespace Nesting
                             //prendo lo spigolo più lungo
                             Edge egBig = InventorClass.getLongestEdgeFace(fcBig, oCompDef, oSheetMetalDoc);
 
-
                             WorkPoint oWpoint = oCompDef.WorkPoints.AddByMidPoint(egBig);
                             oWpoint.Name = "wPntReference";
                             oWpoint.Visible = false;
@@ -518,7 +535,7 @@ namespace Nesting
 
                             WorkPlane oWpWork = oCompDef.WorkPlanes.AddByPlaneAndOffset(oWpReference, 0);
                             oWpWork.Name = "wpWork";
-                            oWpWork.Visible = true;
+                            oWpWork.Visible = false;
 
                             PlanarSketch oSketch = oCompDef.Sketches.Add(oWpWork);
                             ProjectedCut oProjectCut = oSketch.ProjectedCuts.Add();
@@ -526,10 +543,9 @@ namespace Nesting
                             int nTmpLinee = oProjectCut.SketchEntities.Count / 2;
                             int nLinee = InventorClass.getLineeCutCompleto(oCompDef);
 
-                            while (nLinee == 0)
+                            if (nLinee == 0)
                             {
-                                InventorClass.changeThksOpenFile(oSheetMetalDoc);
-                                nLinee = InventorClass.getLineeCutCompleto(oCompDef);
+                                throw new Exception("Nessuna piega trovata.");
                             }
 
                             bool errLinee = false;
@@ -551,6 +567,7 @@ namespace Nesting
                                 if (loop == 20)
                                 {
                                     errLinee = true;
+                                    throw new Exception("Numero massimo offset piano.");
                                     break;
                                 }
                             }
@@ -719,10 +736,10 @@ namespace Nesting
 
                     double tolleranza = 0.01;
 
-                    Console.WriteLine(Thickness - tolleranza);
-                    Console.WriteLine(sl.Length);
-                    Console.WriteLine(Thickness + tolleranza);
-                    Console.WriteLine("--------------------");
+                    //Console.WriteLine(Thickness - tolleranza);
+                    //Console.WriteLine(sl.Length);
+                    //Console.WriteLine(Thickness + tolleranza);
+                    //Console.WriteLine("--------------------");
 
                     if (sl.Length <= Thickness + tolleranza && sl.Length >= Thickness - tolleranza)
                     {
@@ -834,34 +851,37 @@ namespace Nesting
         }
         public static Edge getLongestEdgeFace(Face oFace, SheetMetalComponentDefinition oCompDef, PartDocument oDoc)
         {
-            // TODO devo controllare che sia parallelo alle pieghe
             Edge edge = null;
 
-            foreach(Face f in oCompDef.SurfaceBodies[1].Faces)
+            FaceCollection oFaceColl = iApp.TransientObjects.CreateFaceCollection();
+
+            foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
             {
-                if (f.TangentiallyConnectedFaces.Count == 0)
+                if (f.TangentiallyConnectedFaces.Count == 0 && f.SurfaceType == SurfaceTypeEnum.kPlaneSurface)
                 {
-                    oFace = f;
-                    break;
+                    oDoc.SelectSet.Select(f);
+                    oFaceColl.Add(f);
                 }
             }
 
             double highest = 0;
-
-            foreach (Edge tmpEdge in oFace.Edges)
+            
+            foreach(Face tmpFace in oFaceColl)
             {
-                if (tmpEdge.GeometryType == CurveTypeEnum.kLineSegmentCurve)
+                foreach (Edge tmpEdge in tmpFace.Edges)
                 {
-                    double tmpLength = iApp.MeasureTools.GetMinimumDistance(tmpEdge.StartVertex, tmpEdge.StopVertex);
-
-                    if (tmpLength > highest)
+                    if (tmpEdge.GeometryType == CurveTypeEnum.kLineSegmentCurve)
                     {
-                        highest = tmpLength;
-                        edge = tmpEdge;
+                        double tmpLength = iApp.MeasureTools.GetMinimumDistance(tmpEdge.StartVertex, tmpEdge.StopVertex);
+
+                        if (tmpLength > highest)
+                        {
+                            highest = tmpLength;
+                            edge = tmpEdge;
+                        }
                     }
                 }
             }
-
 
             return (Edge) edge;
         }
