@@ -15,7 +15,8 @@ namespace Nesting
         [STAThread]
         static void Main()
         {
-            InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\Thickness\\LFM");
+            //InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\Thickness\\LFM");
+            InventorClass.disegnaProfiloBello("C:\\Users\\Mirko Magalotti\\Desktop\\test prof");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             //Application.Run(new frm());

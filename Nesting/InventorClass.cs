@@ -481,7 +481,7 @@ namespace Nesting
                         }
 
                         SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oSheetMetalDoc.ComponentDefinition;
-
+                        
                         try
                         {
                             WorkPlane checkPlane = oCompDef.WorkPlanes["wpReference"];
@@ -505,7 +505,7 @@ namespace Nesting
                             Face fcBig = InventorClass.getBiggestPlanarFaceOfColl(facesPart);
 
                             //prendo lo spigolo più lungo
-                            Edge egBig = InventorClass.getLongestEdgeFace(fcBig);
+                            Edge egBig = InventorClass.getLongestEdgeFace(fcBig, oCompDef, oSheetMetalDoc);
 
 
                             WorkPoint oWpoint = oCompDef.WorkPoints.AddByMidPoint(egBig);
@@ -575,26 +575,25 @@ namespace Nesting
                             
                                 oProjectCut.Delete();
 
-                                IDictionary<string, FaceCollection> facce = InventorClass.getFacceInterneEsterne(oCompDef, oSheetMetalDoc);
+                                //IDictionary<string, FaceCollection> facce = InventorClass.getFacceInterneEsterne(oCompDef, oSheetMetalDoc);
 
-                                Asset oAsset;
+                                //Asset oAsset;
 
-                                try
-                                {
-                                    oAsset = oSheetMetalDoc.Assets["RawSide"];
-                                }
-                                    catch (System.ArgumentException e)
-                                {
-                                    Assets oAssets = oSheetMetalDoc.Assets;
+                                //try
+                                //{
+                                //    oAsset = oSheetMetalDoc.Assets["RawSide"];
+                                //}
+                                //    catch (System.ArgumentException e)
+                                //{
+                                //    Assets oAssets = oSheetMetalDoc.Assets;
 
-                                    AssetLibrary oAssetsLib = iApp.AssetLibraries["3D_Pisa_Col"];
+                                //    AssetLibrary oAssetsLib = iApp.AssetLibraries["3D_Pisa_Col"];
+                                //    Asset oAssetLib = oAssetsLib.AppearanceAssets["RawSide"];
 
-                                    Asset oAssetLib = oAssetsLib.AppearanceAssets["RawSide"];
+                                //    oAsset = oAssetLib.CopyTo(oSheetMetalDoc);
+                                //}
 
-                                    oAsset = oAssetLib.CopyTo(oSheetMetalDoc);
-                                }
-
-                                InventorClass.settingAssetsToFaces(facce["lunga"], oAsset);
+                                //InventorClass.settingAssetsToFaces(facce["lunga"], oAsset);
                             }
 
                             iApp.ActiveView.GoHome();
@@ -833,15 +832,25 @@ namespace Nesting
 
             return fc;
         }
-        public static Edge getLongestEdgeFace(Face oFace)
+        public static Edge getLongestEdgeFace(Face oFace, SheetMetalComponentDefinition oCompDef, PartDocument oDoc)
         {
+            // TODO devo controllare che sia parallelo alle pieghe
             Edge edge = null;
+
+            foreach(Face f in oCompDef.SurfaceBodies[1].Faces)
+            {
+                if (f.TangentiallyConnectedFaces.Count == 0)
+                {
+                    oFace = f;
+                    break;
+                }
+            }
 
             double highest = 0;
 
             foreach (Edge tmpEdge in oFace.Edges)
             {
-                if(tmpEdge.GeometryType == CurveTypeEnum.kLineSegmentCurve)
+                if (tmpEdge.GeometryType == CurveTypeEnum.kLineSegmentCurve)
                 {
                     double tmpLength = iApp.MeasureTools.GetMinimumDistance(tmpEdge.StartVertex, tmpEdge.StopVertex);
 
@@ -852,6 +861,7 @@ namespace Nesting
                     }
                 }
             }
+
 
             return (Edge) edge;
         }
