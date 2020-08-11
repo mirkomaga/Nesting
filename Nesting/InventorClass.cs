@@ -484,6 +484,8 @@ namespace Nesting
                         {
                             oSheetMetalDoc.SubType = "{9C464203-9BAE-11D3-8BAD-0060B0CE6BB4}";
                         }
+                        
+                        InventorClass.ricostruiscoLamiera(oSheetMetalDoc);
 
                         try
                         {
@@ -508,6 +510,7 @@ namespace Nesting
                             }
 
                             SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oSheetMetalDoc.ComponentDefinition;
+                            oCompDef.UseSheetMetalStyleThickness = false;
                             Console.WriteLine("Bends Count :" + oCompDef.Bends.Count);
                             
                             List<Face> faces = findFace(oSheetMetalDoc);
@@ -522,16 +525,14 @@ namespace Nesting
                             //prendo la faccia più grande
                             Face fcBig = InventorClass.getBiggestPlanarFaceOfColl(facesPart);
 
-                            //prendo lo spigolo più lungo
-                            Edge egBig = InventorClass.getLongestEdgeFace(fcBig, oCompDef, oSheetMetalDoc);
-
-                            WorkPoint oWpoint = oCompDef.WorkPoints.AddByMidPoint(egBig);
-                            oWpoint.Name = "wPntReference";
-                            oWpoint.Visible = false;
-
-                            WorkPlane oWpReference = oCompDef.WorkPlanes.AddByNormalToCurve(egBig, oWpoint);
+                            WorkPlane oWpReference = InventorClass.getLongestEdgeFace(fcBig, oCompDef, oSheetMetalDoc);
                             oWpReference.Name = "wpReference";
                             oWpReference.Visible = false;
+
+                            if (!oWpReference.Plane.IsParallelTo[oCompDef.WorkPlanes[1].Plane])
+                            {
+                                //throw new Exception("Piano non in asse");
+                            }
 
                             WorkPlane oWpWork = oCompDef.WorkPlanes.AddByPlaneAndOffset(oWpReference, 0);
                             oWpWork.Name = "wpWork";
@@ -540,36 +541,44 @@ namespace Nesting
                             PlanarSketch oSketch = oCompDef.Sketches.Add(oWpWork);
                             ProjectedCut oProjectCut = oSketch.ProjectedCuts.Add();
 
-                            int nTmpLinee = oProjectCut.SketchEntities.Count / 2;
-                            int nLinee = InventorClass.getLineeCutCompleto(oCompDef);
+                            double thk = oCompDef.Thickness.Value;
+                            int nTmpLinee = InventorClass.getoSketchEntityThickness(oProjectCut.SketchEntities, thk);
+                            //int nLinee = InventorClass.getLineeCutCompleto(oCompDef);
+                            int nLinee = 2;
 
-                            if (nLinee == 0)
-                            {
-                                throw new Exception("Nessuna piega trovata.");
-                            }
+                            //if (nLinee == 0)
+                            //{
+                            //    throw new Exception("Nessuna piega trovata.");
+                            //}
 
                             bool errLinee = false;
                         
                             int offset = 1;
 
                             int loop = 0;
-                            while (nLinee != nTmpLinee)
+                            try
                             {
-                                // Devo spostare il piano se ci sono cose nel mezzo
-                                oWpWork.SetByPlaneAndOffset(oWpReference, offset);
 
-                                nTmpLinee = oProjectCut.SketchEntities.Count / 2;
-                                nLinee = InventorClass.getLineeCutCompleto(oCompDef);
-                                loop++;
-
-                                offset += offset;
-                            
-                                if (loop == 20)
+                                while (nLinee != nTmpLinee)
                                 {
-                                    errLinee = true;
-                                    throw new Exception("Numero massimo offset piano.");
-                                    break;
+                                    // Devo spostare il piano se ci sono cose nel mezzo
+                                    oWpWork.SetByPlaneAndOffset(oWpReference, offset);
+
+                                    nTmpLinee = InventorClass.getoSketchEntityThickness(oProjectCut.SketchEntities, thk);
+                                    loop++;
+
+                                    offset += offset;
+                            
+                                    if (loop == 20)
+                                    {
+                                        errLinee = true;
+                                        //throw new Exception("Numero massimo offset piano.");
+                                    }
                                 }
+                            }
+                            catch
+                            {
+                                errLinee = true;
                             }
 
                                                 
@@ -580,7 +589,6 @@ namespace Nesting
                                 
                                 oProjectCut = oSketch.ProjectedCuts.Add();
 
-                                double thk = oCompDef.Thickness.Value;
                                 Console.WriteLine("THIK: "+ thk);
                                 IDictionary<string, List<SketchEntity>> dati = InventorClass.processoEntita(oSketch, thk);
 
@@ -592,25 +600,32 @@ namespace Nesting
                             
                                 oProjectCut.Delete();
 
-                                //IDictionary<string, FaceCollection> facce = InventorClass.getFacceInterneEsterne(oCompDef, oSheetMetalDoc);
+                                try
+                                {
+                                    IDictionary<string, FaceCollection> facce = InventorClass.getFacceInterneEsterne(oCompDef, oSheetMetalDoc);
 
-                                //Asset oAsset;
+                                    Asset oAsset;
 
-                                //try
-                                //{
-                                //    oAsset = oSheetMetalDoc.Assets["RawSide"];
-                                //}
-                                //    catch (System.ArgumentException e)
-                                //{
-                                //    Assets oAssets = oSheetMetalDoc.Assets;
+                                    try
+                                    {
+                                        oAsset = oSheetMetalDoc.Assets["RawSide"];
+                                    }
+                                    catch (System.ArgumentException e)
+                                    {
+                                        Assets oAssets = oSheetMetalDoc.Assets;
 
-                                //    AssetLibrary oAssetsLib = iApp.AssetLibraries["3D_Pisa_Col"];
-                                //    Asset oAssetLib = oAssetsLib.AppearanceAssets["RawSide"];
+                                        AssetLibrary oAssetsLib = iApp.AssetLibraries["3D_Pisa_Col"];
+                                        Asset oAssetLib = oAssetsLib.AppearanceAssets["RawSide"];
 
-                                //    oAsset = oAssetLib.CopyTo(oSheetMetalDoc);
-                                //}
+                                        oAsset = oAssetLib.CopyTo(oSheetMetalDoc);
+                                    }
 
-                                //InventorClass.settingAssetsToFaces(facce["lunga"], oAsset);
+                                    InventorClass.settingAssetsToFaces(facce["lunga"], oAsset);
+                                }
+                                catch
+                                {
+                                    throw new Exception("Impossibile colorare facce.");
+                                }
                             }
 
                             iApp.ActiveView.GoHome();
@@ -620,6 +635,23 @@ namespace Nesting
                     }
                 }
             }
+        }
+        public static int getoSketchEntityThickness(SketchEntitiesEnumerator seC, double Thickness)
+        {
+            int counter = 0;
+            foreach (SketchEntity se in seC)
+            {
+                if(se.Type == ObjectTypeEnum.kSketchLineObject)
+                {
+                    SketchLine sl = (SketchLine)se;
+                    double slLength = Math.Round(sl.Length * 100)/100;
+                    if (slLength == Thickness)
+                    {
+                        counter += 1;
+                    }
+                }
+            }
+            return counter;
         }
         public static void settingAssetsToFaces(FaceCollection fc, Asset oAsset)
         {
@@ -704,7 +736,7 @@ namespace Nesting
                 bNaturalOffsetDir = false;
             }
 
-            SketchEntitiesEnumerator oSSketchEntitiesEnum = oSketch.OffsetSketchEntitiesUsingDistance(oCollSide, 1, bNaturalOffsetDir, false);
+            SketchEntitiesEnumerator oSSketchEntitiesEnum = oSketch.OffsetSketchEntitiesUsingDistance(oCollSide, 0.5, bNaturalOffsetDir, false);
         }
         public static IDictionary<string, List<SketchEntity>> processoEntita(PlanarSketch oSketch, double Thickness)
         {
@@ -849,41 +881,95 @@ namespace Nesting
 
             return fc;
         }
-        public static Edge getLongestEdgeFace(Face oFace, SheetMetalComponentDefinition oCompDef, PartDocument oDoc)
+        public static WorkPlane getLongestEdgeFace(Face oFace, SheetMetalComponentDefinition oCompDef, PartDocument oDoc)
         {
-            Edge edge = null;
-
             FaceCollection oFaceColl = iApp.TransientObjects.CreateFaceCollection();
 
             foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
             {
                 if (f.TangentiallyConnectedFaces.Count == 0 && f.SurfaceType == SurfaceTypeEnum.kPlaneSurface)
                 {
-                    oDoc.SelectSet.Select(f);
-                    oFaceColl.Add(f);
+                    WorkPlane tmpWp = oCompDef.WorkPlanes.AddByPlaneAndOffset(f, 0);
+                    if (tmpWp.Plane.IsParallelTo[oCompDef.WorkPlanes[1].Plane])
+                    {
+                        oDoc.SelectSet.Select(f);
+                        oFaceColl.Add(f);
+                    }
+                    tmpWp.Delete();
                 }
             }
 
-            double highest = 0;
-            
-            foreach(Face tmpFace in oFaceColl)
-            {
-                foreach (Edge tmpEdge in tmpFace.Edges)
-                {
-                    if (tmpEdge.GeometryType == CurveTypeEnum.kLineSegmentCurve)
-                    {
-                        double tmpLength = iApp.MeasureTools.GetMinimumDistance(tmpEdge.StartVertex, tmpEdge.StopVertex);
+            // ? cerco le due facce più lontane
 
-                        if (tmpLength > highest)
+            double tmpDist = 0;
+
+            FaceCollection ofc = iApp.TransientObjects.CreateFaceCollection();
+
+            if (oFaceColl.Count >= 2)
+            {
+                foreach (Face f in oFaceColl)
+                {
+                    foreach (Face f1 in oFaceColl)
+                    {
+                        double dist = iApp.MeasureTools.GetMinimumDistance(f.PointOnFace, f1.PointOnFace);
+
+                        if (tmpDist <= dist)
                         {
-                            highest = tmpLength;
-                            edge = tmpEdge;
+                            tmpDist = dist;
+                            ofc = iApp.TransientObjects.CreateFaceCollection();
+                            ofc.Add(f1);
+                            ofc.Add(f);
                         }
                     }
                 }
-            }
 
-            return (Edge) edge;
+                WorkPlane wp = oCompDef.WorkPlanes.AddByTwoPlanes(ofc[1], ofc[2]);
+                return (WorkPlane)wp;
+            }
+            else
+            {
+                Edge edge = null;
+
+                oFaceColl = iApp.TransientObjects.CreateFaceCollection();
+
+                foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
+                {
+                    if (f.TangentiallyConnectedFaces.Count == 0 && f.SurfaceType == SurfaceTypeEnum.kPlaneSurface)
+                    {
+                        oDoc.SelectSet.Select(f);
+                        oFaceColl.Add(f);
+                    }
+                }
+
+                double highest = 0;
+
+                foreach (Face tmpFace in oFaceColl)
+                {
+                    foreach (Edge tmpEdge in oFace.Edges)
+                    {
+                        if (tmpEdge.GeometryType == CurveTypeEnum.kLineSegmentCurve)
+                        {
+                            double tmpLength = iApp.MeasureTools.GetMinimumDistance(tmpEdge.StartVertex, tmpEdge.StopVertex);
+
+                            if (tmpLength > highest)
+                            {
+                                highest = tmpLength;
+                                edge = tmpEdge;
+                            }
+                        }
+                    }
+                }
+
+                WorkPoint oWpoint = oCompDef.WorkPoints.AddByMidPoint(edge);
+                oWpoint.Name = "wPntReference";
+                oWpoint.Visible = false;
+
+                WorkPlane oWpReference = oCompDef.WorkPlanes.AddByNormalToCurve(edge, oWpoint);
+                oWpReference.Name = "wpReference";
+                oWpReference.Visible = true;
+
+                return oWpReference;
+            }
         }
         public static void coplanarFace(IDictionary<int, Face> facesPart)
         {
@@ -927,113 +1013,32 @@ namespace Nesting
             //    }
             //}
         }
-        public static ObjectCollection riordinoLinee(ObjectCollection entita)
+        public static void ricostruiscoLamiera(PartDocument oDoc)
         {
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
 
-            ObjectCollection results = iApp.TransientObjects.CreateObjectCollection();
+            oCompDef.SurfaceBodies[1].Visible = true;
 
-            
+            FaceCollection fFaces = oCompDef.Bends[1].FrontFaces[1].TangentiallyConnectedFaces;
+            fFaces.Add(oCompDef.Bends[1].FrontFaces[1]);
 
-            //bool stop = false;
-            //while (stop)
-            //{
-            //    SketchPoint epPrinc = null;
-            //    foreach (SketchEntity e in entita)
-            //    {
-            //        SketchPoint sp = null;
-            //        SketchPoint ep = null;
+            FaceCollection bFaces = oCompDef.Bends[1].BackFaces[1].TangentiallyConnectedFaces;
+            bFaces.Add(oCompDef.Bends[1].BackFaces[1]);
 
-            //        switch (e.Type)
-            //        {
-            //            case ObjectTypeEnum.kSketchLineObject:
-            //                SketchLine enty = (SketchLine)e;
-            //                sp = (SketchPoint)enty.StartSketchPoint;
-            //                ep = (SketchPoint)enty.EndSketchPoint;
+            HighlightSet oSet = oDoc.CreateHighlightSet();
 
-            //                Console.WriteLine("-----------------------LINEA-----------------------------");
-            //                Console.WriteLine(Math.Round(sp.Geometry.X, 1) + " - " + Math.Round(sp.Geometry.Y, 1)+ " SP");
-            //                Console.WriteLine(Math.Round(ep.Geometry.X, 1) + " - " + Math.Round(ep.Geometry.Y, 1) + " EP");
-            //                Console.WriteLine("---------------------------------------------------------");
+            foreach (Face f in bFaces)
+            {
+                oSet.AddItem(f);
+            }
 
-            //                break;
-            //            case ObjectTypeEnum.kSketchArcObject:
-            //                SketchArc entyA = (SketchArc)e;
-            //                ep = (SketchPoint)entyA.StartSketchPoint;
-            //                sp = (SketchPoint)entyA.EndSketchPoint;
+            PartFeatures oFeat = oCompDef.Features;
 
-            //                Console.WriteLine("-----------------------ARCO-----------------------------");
-            //                Console.WriteLine(Math.Round(sp.Geometry.X, 1) + " - " + Math.Round(sp.Geometry.Y, 1) + " SP");
-            //                Console.WriteLine(Math.Round(ep.Geometry.X, 1) + " - " + Math.Round(ep.Geometry.Y, 1) + " EP");
-            //                Console.WriteLine("---------------------------------------------------------");
+            oFeat.DeleteFaceFeatures.Add(fFaces);
 
-            //                break;
-            //        }
+            oFeat.ThickenFeatures.Add(bFaces, 2, PartFeatureExtentDirectionEnum.kPositiveExtentDirection, PartFeatureOperationEnum.kNewBodyOperation, false);
 
-            //        if(epPrinc == null)
-            //        {
-
-            //        }
-            //    }
-            //}
-
-            //// todo devo trovare il primo e l'ultimo segmento
-
-            //IDictionary<double[,], ObjectCollection> oStartPoints = new Dictionary<double[,], ObjectCollection>();
-            //IDictionary<double[,], ObjectCollection> oEndPoints = new Dictionary<double[,], ObjectCollection>();
-
-            //foreach (SketchEntity e in entita)
-            //{
-            //    SketchPoint sp = null;
-            //    SketchPoint ep = null;
-
-            //    double spPX;
-            //    double spPY;
-            //    double epPX;
-            //    double epPY;
-
-            //    switch (e.Type)
-            //    {
-            //        case ObjectTypeEnum.kSketchLineObject:
-            //            SketchLine enty = (SketchLine)e;
-            //            sp = (SketchPoint)enty.StartSketchPoint;
-            //            ep = (SketchPoint)enty.EndSketchPoint;
-
-            //            spPX = Math.Round(sp.Geometry.X, 1);
-            //            spPY = Math.Round(sp.Geometry.Y, 1);
-
-            //            epPX = Math.Round(ep.Geometry.X, 1);
-            //            epPY = Math.Round(ep.Geometry.Y, 1);
-
-            //            break;
-            //        case ObjectTypeEnum.kSketchArcObject:
-            //            SketchArc entyA = (SketchArc)e;
-            //            ep = (SketchPoint)entyA.StartSketchPoint;
-            //            sp = (SketchPoint)entyA.EndSketchPoint;
-
-            //            spPX = Math.Round(sp.Geometry.X, 1);
-            //            spPY = Math.Round(sp.Geometry.Y, 1);
-
-            //            epPX = Math.Round(ep.Geometry.X, 1);
-            //            epPY = Math.Round(ep.Geometry.Y, 1);
-
-            //            break;
-            //    }
-
-            //    if (!oStartPoints.ContainsKey())
-            //    {
-
-            //    }
-            //    else
-            //    {
-            //        oStartPoints[spPX]
-            //    }
-
-            //    //if (epPrinc == null)
-            //    //{
-
-            //    //}
-            //}
-            return results;
+            oSet.Color = iApp.TransientObjects.CreateColor(255, 0, 0);
         }
     }
 }

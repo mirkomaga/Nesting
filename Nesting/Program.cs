@@ -16,8 +16,10 @@ namespace Nesting
         static void Main()
         {
             //InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\Thickness\\LFM");
+            //InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\test");
+            InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\test");
             //InventorClass.disegnaProfiloBello("C:\\Users\\Mirko Magalotti\\Desktop\\test prof");
-            InventorClass.disegnaProfiloBello("C:\\Users\\Mirko Magalotti\\Desktop\\edge");
+            //InventorClass.disegnaProfiloBello("C:\\Users\\Mirko Magalotti\\Desktop\\edge");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             //Application.Run(new frm());
