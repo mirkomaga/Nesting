@@ -17,6 +17,10 @@ namespace Nesting
 {
     class InventorClass
     {
+
+        [DllImport("USER32.DLL")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd); 
+
         public static Inventor.Application iApp = null;
         private static Inventor.ApplicationEvents iAppE = null;
         public static void CreateSM(List<Rettangolo> oggetto, ToolStripProgressBar bar, ListView lv, string path)
@@ -1019,26 +1023,135 @@ namespace Nesting
 
             oCompDef.SurfaceBodies[1].Visible = true;
 
-            FaceCollection fFaces = oCompDef.Bends[1].FrontFaces[1].TangentiallyConnectedFaces;
-            fFaces.Add(oCompDef.Bends[1].FrontFaces[1]);
+            //FaceCollection fFaces = oCompDef.Bends[1].FrontFaces[1].TangentiallyConnectedFaces;
+            //fFaces.Add(oCompDef.Bends[1].FrontFaces[1]);
 
-            FaceCollection bFaces = oCompDef.Bends[1].BackFaces[1].TangentiallyConnectedFaces;
-            bFaces.Add(oCompDef.Bends[1].BackFaces[1]);
+            //FaceCollection bFaces = oCompDef.Bends[1].BackFaces[1].TangentiallyConnectedFaces;
+            //bFaces.Add(oCompDef.Bends[1].BackFaces[1]);
+            ////HighlightSet oSet = oDoc.CreateHighlightSet();
 
-            HighlightSet oSet = oDoc.CreateHighlightSet();
+            //FaceCollection faces = iApp.TransientObjects.CreateFaceCollection();
 
-            foreach (Face f in bFaces)
-            {
-                oSet.AddItem(f);
-            }
+            //foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
+            //{
+            //    if (f.TangentiallyConnectedFaces.Count == 0)
+            //    {
+            //        fFaces.Add(f);
+            //    }
+            //}
+
+            //foreach (Face f in bFaces)
+            //{
+            //    //if (f.SurfaceType != SurfaceTypeEnum.kCylinderSurface)
+            //    //{
+
+            //    //}
+            //    faces.Add(f);
+            //}
+
+            deleteFillet(oCompDef);
+
+            FaceCollection tmpFaces = oCompDef.SurfaceBodies[1].Faces[1].TangentiallyConnectedFaces;
+            tmpFaces.Add(oCompDef.SurfaceBodies[1].Faces[1]);
 
             PartFeatures oFeat = oCompDef.Features;
 
-            oFeat.DeleteFaceFeatures.Add(fFaces);
+            //foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
+            //{
+            //    Console.WriteLine(f.TangentiallyConnectedFaces.Count);
+            //}
 
-            oFeat.ThickenFeatures.Add(bFaces, 2, PartFeatureExtentDirectionEnum.kPositiveExtentDirection, PartFeatureOperationEnum.kNewBodyOperation, false);
 
-            oSet.Color = iApp.TransientObjects.CreateColor(255, 0, 0);
+            oFeat.DeleteFaceFeatures.Add(tmpFaces);
+
+            //oFeat.ThickenFeatures.Add(bFaces, 2, PartFeatureExtentDirectionEnum.kPositiveExtentDirection, PartFeatureOperationEnum.kNewBodyOperation, false);
+
+        }
+
+        public static FaceCollection findFaceNexTo(FaceCollection oFaceColl)
+        {
+            FaceCollection result = iApp.TransientObjects.CreateFaceCollection();
+
+            Face lastFace = null;
+            foreach (Face f in oFaceColl)
+            {
+                if (lastFace == null)
+                {
+                    lastFace = f;
+                    result.Add(f);
+                }
+                else
+                {
+                    Edges oEdgesLast = lastFace.Edges;
+
+                    List<int> tmpEdge = new List<int>();
+
+                    foreach (Edge e in oEdgesLast)
+                    {
+                        tmpEdge.Add(e.TransientKey);
+                    }
+
+                    Edges oEdges = f.Edges;
+
+                    foreach (Edge e in oEdges)
+                    {
+                    }
+                }
+            }
+
+            return result;
+        }
+        public static void deleteFillet(SheetMetalComponentDefinition oCompDef)
+        {
+            NonParametricBaseFeature oBaseFeature = oCompDef.Features.NonParametricBaseFeatures[1];
+
+            oBaseFeature.Edit();
+
+            SurfaceBody basebody = oBaseFeature.BaseSolidBody;
+
+            ObjectCollection oColl = iApp.TransientObjects.CreateObjectCollection();
+
+            foreach (Face f in basebody.Faces)
+            {
+
+                if (f.SurfaceType == SurfaceTypeEnum.kCylinderSurface)
+                {
+                    oColl.Add(f);
+                }
+            }
+            oBaseFeature.DeleteFaces(oColl);
+            oBaseFeature.ExitEdit();
+        }
+
+        public static void extendSurface(Edge oEdge, Face oFace, PartDocument oDoc)
+        {
+            Process process = Process.GetProcessesByName("Inventor")[0];
+            process.WaitForInputIdle();
+            IntPtr s = process.MainWindowHandle;
+            SetForegroundWindow(s);
+
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            oDoc.SelectSet.Clear();
+
+            CommandManager oCommMan = iApp.CommandManager;
+
+            oDoc.SelectSet.Select(oEdge);
+            
+            ControlDefinition oCommand = oCommMan.ControlDefinitions["PartExtendCmd"];
+            
+            oCommand.Execute();
+
+            SendKeys.SendWait("{TAB}");
+            SendKeys.SendWait("{TAB}");
+            SendKeys.SendWait("{END}");
+
+            iApp.CommandManager.DoSelect(oFace);
+
+            //SendKeys.SendWait("{TAB}");
+            //SendKeys.SendWait("{ENTER}");
+
         }
     }
+
 }
