@@ -1023,48 +1023,101 @@ namespace Nesting
 
             oCompDef.SurfaceBodies[1].Visible = true;
 
-            //FaceCollection fFaces = oCompDef.Bends[1].FrontFaces[1].TangentiallyConnectedFaces;
-            //fFaces.Add(oCompDef.Bends[1].FrontFaces[1]);
+            //List<string> faceCollToDelete = new List<string>();
+            List<string> faceCollToDelete = new List<string>();
+            List<string> faceCollToKeep = new List<string>();
+            Face oFaceToDelete = null;
 
-            //FaceCollection bFaces = oCompDef.Bends[1].BackFaces[1].TangentiallyConnectedFaces;
-            //bFaces.Add(oCompDef.Bends[1].BackFaces[1]);
-            ////HighlightSet oSet = oDoc.CreateHighlightSet();
+            Bend oBendRiferimento = oCompDef.Bends[1];
 
-            //FaceCollection faces = iApp.TransientObjects.CreateFaceCollection();
+            FaceCollection faceCollBack = oBendRiferimento.BackFaces[1].TangentiallyConnectedFaces;
+            faceCollBack.Add(oBendRiferimento.BackFaces[1]);
+            oFaceToDelete = oBendRiferimento.BackFaces[1];
 
-            //foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
-            //{
-            //    if (f.TangentiallyConnectedFaces.Count == 0)
-            //    {
-            //        fFaces.Add(f);
-            //    }
-            //}
+            FaceCollection faceCollFront = oBendRiferimento.FrontFaces[1].TangentiallyConnectedFaces;
+            faceCollFront.Add(oBendRiferimento.FrontFaces[1]);
 
-            //foreach (Face f in bFaces)
-            //{
-            //    //if (f.SurfaceType != SurfaceTypeEnum.kCylinderSurface)
-            //    //{
+            foreach (Face f in faceCollBack)
+            {
+                faceCollToDelete.Add(f.InternalName);
+            }
 
-            //    //}
-            //    faces.Add(f);
-            //}
+            foreach (Face f in faceCollFront)
+            {
+                faceCollToKeep.Add(f.InternalName);
+            }
 
-            deleteFillet(oCompDef);
+            deleteFillet(oCompDef, faceCollToKeep);
 
-            FaceCollection tmpFaces = oCompDef.SurfaceBodies[1].Faces[1].TangentiallyConnectedFaces;
-            tmpFaces.Add(oCompDef.SurfaceBodies[1].Faces[1]);
+            FaceCollection tmpFaces = iApp.TransientObjects.CreateFaceCollection();
+
+            foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
+            {
+                if (!faceCollToKeep.Contains(f.InternalName))
+                {
+                    tmpFaces.Add(f);
+                }
+            }
+
+            IDictionary<Face, Edges> tmpFaceEdges = new Dictionary<Face,Edges>();
+
+            List<long> oEdges = new List<long>();
+            
+            IDictionary<long, Edge> rifEdge = new Dictionary<long, Edge>();
+
+            foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
+            {
+                if (faceCollToKeep.Contains(f.InternalName))
+                {
+                    tmpFaceEdges.Add(f, f.Edges);
+
+                    foreach (Edge e in f.Edges)
+                    {
+                        try
+                        {
+                            oEdges.Add(e.TransientKey);
+                            rifEdge.Add(e.TransientKey, e);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+            }
+
+
+            IEnumerable<long> duplicates = oEdges.GroupBy(x => x).Where(g => g.Count() > 1).Select(x => x.Key);
+
+            List<long> tmpAdded = new List<long>();
+
+            EdgeCollection eColl = iApp.TransientObjects.CreateEdgeCollection();
+            foreach (long rif in oEdges)
+            {
+                if (duplicates.Contains(rif) && !tmpAdded.Contains(rif))
+                {
+                    eColl.Add(rifEdge[rif]);
+                    tmpAdded.Add(rif);
+                }
+            }
 
             PartFeatures oFeat = oCompDef.Features;
-
-            //foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
-            //{
-            //    Console.WriteLine(f.TangentiallyConnectedFaces.Count);
-            //}
-
-
             oFeat.DeleteFaceFeatures.Add(tmpFaces);
 
-            //oFeat.ThickenFeatures.Add(bFaces, 2, PartFeatureExtentDirectionEnum.kPositiveExtentDirection, PartFeatureOperationEnum.kNewBodyOperation, false);
+            createFillet(eColl, oCompDef);
+
+            FaceCollection fColl = iApp.TransientObjects.CreateFaceCollection();
+
+            foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
+            {
+                fColl.Add(f);
+            }
+
+            oFeat.ThickenFeatures.Add(fColl, 0.2, PartFeatureExtentDirectionEnum.kPositiveExtentDirection, PartFeatureOperationEnum.kNewBodyOperation, false);
+        }
+
+        public static void createFillet(EdgeCollection e, SheetMetalComponentDefinition oCompDef)
+        {
+            FilletFeature oFillet = oCompDef.Features.FilletFeatures.AddSimple(e, oCompDef.Thickness.Value);
 
         }
 
@@ -1101,7 +1154,7 @@ namespace Nesting
 
             return result;
         }
-        public static void deleteFillet(SheetMetalComponentDefinition oCompDef)
+        public static void deleteFillet(SheetMetalComponentDefinition oCompDef, List<string> faceCollToDelete)
         {
             NonParametricBaseFeature oBaseFeature = oCompDef.Features.NonParametricBaseFeatures[1];
 
@@ -1113,16 +1166,17 @@ namespace Nesting
 
             foreach (Face f in basebody.Faces)
             {
-
-                if (f.SurfaceType == SurfaceTypeEnum.kCylinderSurface)
+                if (faceCollToDelete.Contains(f.InternalName))
                 {
-                    oColl.Add(f);
+                    if (f.SurfaceType == SurfaceTypeEnum.kCylinderSurface)
+                    {
+                        oColl.Add(f);
+                    }
                 }
             }
             oBaseFeature.DeleteFaces(oColl);
             oBaseFeature.ExitEdit();
         }
-
         public static void extendSurface(Edge oEdge, Face oFace, PartDocument oDoc)
         {
             Process process = Process.GetProcessesByName("Inventor")[0];
