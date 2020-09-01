@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Media.Media3D;
 using System.Windows.Shapes;
+using Point = Inventor.Point;
 
 namespace Nesting
 {
@@ -489,8 +490,6 @@ namespace Nesting
                             oSheetMetalDoc.SubType = "{9C464203-9BAE-11D3-8BAD-0060B0CE6BB4}";
                         }
                         
-                        InventorClass.ricostruiscoLamiera(oSheetMetalDoc);
-
                         try
                         {
                             SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oSheetMetalDoc.ComponentDefinition;
@@ -507,6 +506,7 @@ namespace Nesting
                             try
                             {
                                 InventorClass.changeThksOpenFile(oSheetMetalDoc);
+                                InventorClass.ricostruiscoLamiera(oSheetMetalDoc);
                             }
                             catch (Exception e)
                             {
@@ -1103,8 +1103,6 @@ namespace Nesting
             PartFeatures oFeat = oCompDef.Features;
             oFeat.DeleteFaceFeatures.Add(tmpFaces);
 
-            createFillet(eColl, oCompDef);
-
             FaceCollection fColl = iApp.TransientObjects.CreateFaceCollection();
 
             foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
@@ -1112,15 +1110,31 @@ namespace Nesting
                 fColl.Add(f);
             }
 
-            oFeat.ThickenFeatures.Add(fColl, 0.2, PartFeatureExtentDirectionEnum.kPositiveExtentDirection, PartFeatureOperationEnum.kNewBodyOperation, false);
-        }
+            oFeat.ThickenFeatures.Add(fColl, oCompDef.Thickness.Value, PartFeatureExtentDirectionEnum.kNegativeExtentDirection, PartFeatureOperationEnum.kJoinOperation, true);
 
-        public static void createFillet(EdgeCollection e, SheetMetalComponentDefinition oCompDef)
+            createFillet(oDoc, oCompDef);
+        }
+        public static void createFillet(PartDocument oDoc, SheetMetalComponentDefinition oCompDef)
         {
-            FilletFeature oFillet = oCompDef.Features.FilletFeatures.AddSimple(e, oCompDef.Thickness.Value);
+            //FilletFeature oFillet = oCompDef.Features.FilletFeatures.AddSimple(e, oCompDef.Thickness.Value);
 
+            SheetMetalFeatures sFeatures = (SheetMetalFeatures)oCompDef.Features;
+
+            foreach (Edge oEdge in oCompDef.SurfaceBodies[1].ConcaveEdges)
+            {
+                try
+                {
+                    EdgeCollection oBendEdges = iApp.TransientObjects.CreateEdgeCollection();
+
+                    oBendEdges.Add(oEdge);
+
+                    BendDefinition oBendDef = sFeatures.BendFeatures.CreateBendDefinition(oBendEdges);
+
+                    BendFeature oBendFeature = sFeatures.BendFeatures.Add(oBendDef);
+                }
+                catch { }
+            }
         }
-
         public static FaceCollection findFaceNexTo(FaceCollection oFaceColl)
         {
             FaceCollection result = iApp.TransientObjects.CreateFaceCollection();
@@ -1207,5 +1221,4 @@ namespace Nesting
 
         }
     }
-
 }
