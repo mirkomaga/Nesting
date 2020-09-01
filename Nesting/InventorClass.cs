@@ -1021,6 +1021,13 @@ namespace Nesting
         {
             SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
 
+            // ! cerco se c'è un taglio trasversale che invalida la ricostruzione
+
+            foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
+            {
+
+            }
+
             oCompDef.SurfaceBodies[1].Visible = true;
 
             //List<string> faceCollToDelete = new List<string>();
