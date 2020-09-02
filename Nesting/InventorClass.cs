@@ -645,7 +645,6 @@ namespace Nesting
                 }
             }
         }
-
         public static WorkPlane addPlaneInTheMiddleOfBox(SheetMetalComponentDefinition oComp)
         {
             Box oRb = oComp.SurfaceBodies[1].RangeBox;
