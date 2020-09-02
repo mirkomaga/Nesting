@@ -526,17 +526,21 @@ namespace Nesting
                                 facesPart.Add(fc);
                             }
 
-                            //prendo la faccia più grande
-                            Face fcBig = InventorClass.getBiggestPlanarFaceOfColl(facesPart);
+                            ////prendo la faccia più grande
+                            //Face fcBig = InventorClass.getBiggestPlanarFaceOfColl(facesPart);
 
-                            WorkPlane oWpReference = InventorClass.getLongestEdgeFace(fcBig, oCompDef, oSheetMetalDoc);
-                            oWpReference.Name = "wpReference";
-                            oWpReference.Visible = false;
+                            //WorkPlane oWpReference = InventorClass.getLongestEdgeFace(fcBig, oCompDef, oSheetMetalDoc);
+                            //oWpReference.Name = "wpReference";
+                            //oWpReference.Visible = false;
 
-                            if (!oWpReference.Plane.IsParallelTo[oCompDef.WorkPlanes[1].Plane])
-                            {
-                                //throw new Exception("Piano non in asse");
-                            }
+                            //if (!oWpReference.Plane.IsParallelTo[oCompDef.WorkPlanes[1].Plane])
+                            //{
+                            //    //throw new Exception("Piano non in asse");
+                            //}
+
+
+                            // ? inserisco il piano di lavoro
+                            WorkPlane oWpReference = InventorClass.addPlaneInTheMiddleOfBox(oCompDef);
 
                             WorkPlane oWpWork = oCompDef.WorkPlanes.AddByPlaneAndOffset(oWpReference, 0);
                             oWpWork.Name = "wpWork";
@@ -631,6 +635,7 @@ namespace Nesting
                                     throw new Exception("Impossibile colorare facce.");
                                 }
                             }
+                            
 
                             iApp.ActiveView.GoHome();
                             oSheetMetalDoc.Save();
@@ -639,6 +644,60 @@ namespace Nesting
                     }
                 }
             }
+        }
+
+        public static WorkPlane addPlaneInTheMiddleOfBox(SheetMetalComponentDefinition oComp)
+        {
+            WorkPlane wpWork = null;
+
+            Box oRb = oComp.SurfaceBodies[1].RangeBox;
+
+            TransientBRep oTransientBRep = iApp.TransientBRep;
+
+            SurfaceBody oBody = oTransientBRep.CreateSolidBlock(oRb);
+
+            NonParametricBaseFeature oBaseFeature = oComp.Features.NonParametricBaseFeatures.Add(oBody);
+
+            FaceCollection oFaceColl = iApp.TransientObjects.CreateFaceCollection();
+
+            foreach (Face ff in oBaseFeature.Faces)
+            {
+                WorkPlane oWorkPlane = oComp.WorkPlanes.AddByPlaneAndOffset(ff, 0);
+
+                if (oWorkPlane.Plane.IsParallelTo[oComp.WorkPlanes[1].Plane])
+                {
+                    oFaceColl.Add(ff);
+                }
+
+                oWorkPlane.Delete();
+
+                if (oFaceColl.Count == 2)
+                {
+                    break;
+                }
+            }
+
+            if (oFaceColl.Count == 2)
+            {
+                WorkPlane wp1 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl[1], 0);
+                WorkPlane wp2 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl[2], 0);
+
+                wpWork = oComp.WorkPlanes.AddByTwoPlanes(wp1, wp2);
+                wpWork.Name = "wpReference";
+                wpWork.Visible = false;
+
+                wp1.Visible = false;
+                wp2.Visible = false;
+                wpWork.Visible = false;
+                
+                oBaseFeature.Delete(false, true, true);
+
+                return wpWork;
+            }
+
+            oBody.Delete();
+
+            return wpWork;
         }
         public static int getoSketchEntityThickness(SketchEntitiesEnumerator seC, double Thickness)
         {
@@ -713,11 +772,11 @@ namespace Nesting
 
             return result;
         }
-        public static void offsetSketch(PlanarSketch oSketch, List<SketchEntity> dati)
+        public static void offsetSketch(PlanarSketch oSketch, List<SketchEntity> dt)
         {
 
             ObjectCollection oCollSide = iApp.TransientObjects.CreateObjectCollection();
-            foreach (SketchEntity e in dati)
+            foreach (SketchEntity e in dt)
             {
                 oCollSide.Add(e);
             }
@@ -885,7 +944,21 @@ namespace Nesting
 
             return fc;
         }
-        public static WorkPlane getLongestEdgeFace(Face oFace, SheetMetalComponentDefinition oCompDef, PartDocument oDoc)
+        public static WorkPlane getLongestEdgeFace(Face oFace, SheetMetalComponentDefinition oCompDef, PartDocument oDoc) 
+        {
+            WorkPlane wp = null;
+
+            //Box oRb = oCompDef.SurfaceBodies[1].RangeBox;
+
+            //oRb.
+            //foreach ()
+            //{
+
+            //}
+
+            return wp;
+        }
+        public static WorkPlane getLongestEdgeFace_OLD(Face oFace, SheetMetalComponentDefinition oCompDef, PartDocument oDoc)
         {
             FaceCollection oFaceColl = iApp.TransientObjects.CreateFaceCollection();
 
@@ -1229,3 +1302,87 @@ namespace Nesting
         }
     }
 }
+
+//Dim oDoc As PartDocument
+//Dim oComp As SheetMetalComponentDefinition
+//Dim oSheetFeat As SheetMetalFeatures
+//Dim oFeats As PartFeatures
+//Dim oFeat As PartFeature
+//Dim oAssets As Assets
+//Dim oAsset As Asset
+
+//Dim frontFacesArea As Double
+//Dim backFacesArea As Double
+
+//Dim oFace As Face
+//Dim oSketchFace As Face
+
+//Dim oSketchEnt As SketchEntity
+//Dim oLine As SketchLine
+//Dim oArc As SketchArc
+
+//Dim oSet1 As HighlightSet
+//Dim oSet2 As HighlightSet
+
+
+//Sub TEST()
+//    Set oDoc = ThisApplication.ActiveDocument
+
+
+//    Set oComp = oDoc.ComponentDefinition
+
+//    Dim oRb As Box
+//    Set oRb = oComp.SurfaceBodies.Item(1).RangeBox
+
+
+//    Dim oTransientBRep As TransientBRep
+//    Set oTransientBRep = ThisApplication.TransientBRep
+
+
+//    Dim oBody As SurfaceBody
+//    Set oBody = oTransientBRep.CreateSolidBlock(oRb)
+
+
+//    Dim oBaseFeature As NonParametricBaseFeature
+//    Set oBaseFeature = oComp.Features.NonParametricBaseFeatures.Add(oBody)
+
+
+//    Dim oFaceColl As FaceCollection
+//    Set oFaceColl = ThisApplication.TransientObjects.CreateFaceCollection
+
+
+//    Dim f As Face
+//    For Each f In oBaseFeature.Faces
+
+//        Dim wp As WorkPlane
+//        Set wp = oComp.WorkPlanes.AddByPlaneAndOffset(f, 0)
+            
+//        If wp.Plane.IsParallelTo(oComp.WorkPlanes.Item(1).Plane) Then
+//            oFaceColl.Add f
+//        End If
+
+//        wp.Delete
+
+//        If oFaceColl.Count = 2 Then Exit For
+//    Next
+
+
+//    If oFaceColl.Count = 2 Then
+//        Dim wp1 As WorkPlane
+//        Dim wp2 As WorkPlane
+
+//        Dim wpWork As WorkPlane
+
+//        Set wp1 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl.Item(1), 0)
+//        Set wp2 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl.Item(2), 0)
+
+
+//        Set wpWork = oComp.WorkPlanes.AddByTwoPlanes(wp1, wp2)
+//        wpWork.Name = "wpWork"
+
+
+//        wp1.Visible = False
+//        wp2.Visible = False
+//    End If
+//End Sub
+
