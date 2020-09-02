@@ -648,8 +648,6 @@ namespace Nesting
 
         public static WorkPlane addPlaneInTheMiddleOfBox(SheetMetalComponentDefinition oComp)
         {
-            WorkPlane wpWork = null;
-
             Box oRb = oComp.SurfaceBodies[1].RangeBox;
 
             TransientBRep oTransientBRep = iApp.TransientBRep;
@@ -658,44 +656,27 @@ namespace Nesting
 
             NonParametricBaseFeature oBaseFeature = oComp.Features.NonParametricBaseFeatures.Add(oBody);
 
-            FaceCollection oFaceColl = iApp.TransientObjects.CreateFaceCollection();
-
-            foreach (Face ff in oBaseFeature.Faces)
+            Edge tmpEdge = null;
+            Double length = 0;
+            
+            foreach (Edge edg in oBaseFeature.SurfaceBodies[1].Edges)
             {
-                WorkPlane oWorkPlane = oComp.WorkPlanes.AddByPlaneAndOffset(ff, 0);
+                Double tmpLength = iApp.MeasureTools.GetMinimumDistance(edg.StartVertex, edg.StopVertex);
 
-                if (oWorkPlane.Plane.IsParallelTo[oComp.WorkPlanes[1].Plane])
+                if (tmpLength > length)
                 {
-                    oFaceColl.Add(ff);
-                }
-
-                oWorkPlane.Delete();
-
-                if (oFaceColl.Count == 2)
-                {
-                    break;
+                    length = tmpLength;
+                    tmpEdge = edg;
                 }
             }
 
-            if (oFaceColl.Count == 2)
-            {
-                WorkPlane wp1 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl[1], 0);
-                WorkPlane wp2 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl[2], 0);
+            WorkPoint oWp = oComp.WorkPoints.AddByMidPoint(tmpEdge);
+            oWp.Name = "wpPoint";
 
-                wpWork = oComp.WorkPlanes.AddByTwoPlanes(wp1, wp2);
-                wpWork.Name = "wpReference";
-                wpWork.Visible = false;
+            WorkPlane wpWork = oComp.WorkPlanes.AddByNormalToCurve(tmpEdge, oWp);
+            wpWork.Name = "wpWorkReference";
 
-                wp1.Visible = false;
-                wp2.Visible = false;
-                wpWork.Visible = false;
-                
-                oBaseFeature.Delete(false, true, true);
-
-                return wpWork;
-            }
-
-            oBody.Delete();
+            oBaseFeature.Delete(false,true,true);
 
             return wpWork;
         }
