@@ -493,7 +493,7 @@ namespace Nesting
                         try
                         {
                             SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oSheetMetalDoc.ComponentDefinition;
-                            WorkPlane checkPlane = oCompDef.WorkPlanes["wpReference"];
+                            WorkPlane checkPlane = oCompDef.WorkPlanes["wpWork"];
 
                             iApp.ActiveView.GoHome();
                             oSheetMetalDoc.Save();
@@ -506,6 +506,14 @@ namespace Nesting
                             try
                             {
                                 InventorClass.changeThksOpenFile(oSheetMetalDoc);
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e);
+                            }
+
+                            try
+                            {
                                 InventorClass.ricostruiscoLamiera(oSheetMetalDoc);
                             }
                             catch (Exception e)
@@ -537,7 +545,6 @@ namespace Nesting
                             //{
                             //    //throw new Exception("Piano non in asse");
                             //}
-
 
                             // ? inserisco il piano di lavoro
                             WorkPlane oWpReference = InventorClass.addPlaneInTheMiddleOfBox(oCompDef);
@@ -632,7 +639,7 @@ namespace Nesting
                                 }
                                 catch
                                 {
-                                    throw new Exception("Impossibile colorare facce.");
+                                    //throw new Exception("Impossibile colorare facce.");
                                 }
                             }
                             
@@ -655,27 +662,50 @@ namespace Nesting
 
             NonParametricBaseFeature oBaseFeature = oComp.Features.NonParametricBaseFeatures.Add(oBody);
 
-            Edge tmpEdge = null;
-            Double length = 0;
-            
-            foreach (Edge edg in oBaseFeature.SurfaceBodies[1].Edges)
-            {
-                Double tmpLength = iApp.MeasureTools.GetMinimumDistance(edg.StartVertex, edg.StopVertex);
+            //Edge tmpEdge = null;
+            //Double length = 0;
 
-                if (tmpLength > length)
+            //foreach (Edge edg in oBaseFeature.SurfaceBodies[1].Edges)
+            //{
+            //    Double tmpLength = iApp.MeasureTools.GetMinimumDistance(edg.StartVertex, edg.StopVertex);
+
+            //    if (tmpLength > length)
+            //    {
+            //        length = tmpLength;
+            //        tmpEdge = edg;
+            //    }
+            //}
+
+            FaceCollection oFaceColl = iApp.TransientObjects.CreateFaceCollection();
+
+            foreach (Face f in oBaseFeature.SurfaceBodies[1].Faces)
+            {
+                WorkPlane tmpWp = oComp.WorkPlanes.AddByPlaneAndOffset(f, 0);
+
+                if (tmpWp.Plane.IsParallelTo[oComp.WorkPlanes[1].Plane])
                 {
-                    length = tmpLength;
-                    tmpEdge = edg;
+                    oFaceColl.Add(f);
                 }
+
+                tmpWp.Delete();
             }
 
-            WorkPoint oWp = oComp.WorkPoints.AddByMidPoint(tmpEdge);
-            oWp.Name = "wpPoint";
+            WorkPlane wpWork = null;
+            if (oFaceColl.Count >= 2)
+            {
+                WorkPlane wp1 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl[1],0);
+                WorkPlane wp2 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl[2], 0);
 
-            WorkPlane wpWork = oComp.WorkPlanes.AddByNormalToCurve(tmpEdge, oWp);
-            wpWork.Name = "wpWorkReference";
+                wpWork = oComp.WorkPlanes.AddByTwoPlanes(wp1,wp2);
+                wpWork.Name = "wpWorkReference";
+                wpWork.Grounded = true;
+                wpWork.Visible = false;
 
-            oBaseFeature.Delete(false,true,true);
+                oBaseFeature.Delete(false, true, true);
+
+                wp1.Delete();
+                wp2.Delete();
+            }
 
             return wpWork;
         }
@@ -688,7 +718,8 @@ namespace Nesting
                 {
                     SketchLine sl = (SketchLine)se;
                     double slLength = Math.Round(sl.Length * 100)/100;
-                    if (slLength == Thickness)
+
+                    if (slLength == Math.Round(Thickness, 2))
                     {
                         counter += 1;
                     }
@@ -1075,12 +1106,6 @@ namespace Nesting
             SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
 
             // ! cerco se c'è un taglio trasversale che invalida la ricostruzione
-
-            foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
-            {
-
-            }
-
             oCompDef.SurfaceBodies[1].Visible = true;
 
             //List<string> faceCollToDelete = new List<string>();
@@ -1167,12 +1192,27 @@ namespace Nesting
 
             foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
             {
+                oDoc.SelectSet.Select(f);
                 fColl.Add(f);
+                InventorClass.coloroEntita(oDoc, 0, 255,0, f);
             }
 
-            oFeat.ThickenFeatures.Add(fColl, oCompDef.Thickness.Value, PartFeatureExtentDirectionEnum.kNegativeExtentDirection, PartFeatureOperationEnum.kJoinOperation, true);
+            try
+            {
+                oFeat.ThickenFeatures.Add(fColl, oCompDef.Thickness.Value, PartFeatureExtentDirectionEnum.kNegativeExtentDirection, PartFeatureOperationEnum.kJoinOperation, true);
+            }
+            catch
+            {
+                throw new Exception("Attenzione alla surface");
+            }
 
             createFillet(oDoc, oCompDef);
+        }
+        public static void coloroEntita(PartDocument oDoc, byte r, byte g, byte b, dynamic e)
+        {
+            HighlightSet oHS2 = oDoc.HighlightSets.Add();
+            oHS2.Color = iApp.TransientObjects.CreateColor(r, g, b);
+            oHS2.AddItem(e);
         }
         public static void createFillet(PartDocument oDoc, SheetMetalComponentDefinition oCompDef)
         {
@@ -1182,6 +1222,10 @@ namespace Nesting
 
             foreach (Edge oEdge in oCompDef.SurfaceBodies[1].ConcaveEdges)
             {
+                int tmpCount = oCompDef.SurfaceBodies[1].ConcaveEdges.Count;
+
+                InventorClass.coloroEntita(oDoc, 0, 255, 255, oEdge);
+
                 try
                 {
                     EdgeCollection oBendEdges = iApp.TransientObjects.CreateEdgeCollection();
@@ -1191,6 +1235,12 @@ namespace Nesting
                     BendDefinition oBendDef = sFeatures.BendFeatures.CreateBendDefinition(oBendEdges);
 
                     BendFeature oBendFeature = sFeatures.BendFeatures.Add(oBendDef);
+                    
+                    if (tmpCount != oCompDef.SurfaceBodies[1].ConcaveEdges.Count)
+                    {
+                        InventorClass.createFillet(oDoc, oCompDef);
+                        break;
+                    }
                 }
                 catch { }
             }
@@ -1336,7 +1386,7 @@ namespace Nesting
 
 //        Dim wp As WorkPlane
 //        Set wp = oComp.WorkPlanes.AddByPlaneAndOffset(f, 0)
-            
+
 //        If wp.Plane.IsParallelTo(oComp.WorkPlanes.Item(1).Plane) Then
 //            oFaceColl.Add f
 //        End If
@@ -1366,3 +1416,61 @@ namespace Nesting
 //    End If
 //End Sub
 
+
+
+
+
+
+
+
+//Sub main()
+//    Set oDoc = ThisApplication.ActiveDocument
+
+
+//    Set oComp = oDoc.ComponentDefinition
+
+
+//    Dim oFace As Face
+
+
+//    Set oFace = oComp.SurfaceBodies.Item(1).Faces.Item(9)
+
+
+//    If oFace.EdgeLoops.Count > 1 Then
+//        Dim el As EdgeLoop
+//        For Each el In oFace.EdgeLoops
+//            Dim e As Edge
+//            For Each e In el.Edges
+//                If e.GeometryType<> 5123 Then
+//                    Dim f As Face
+//                    For Each f In e.Faces
+//                        If f.SurfaceType<> kPlaneSurface Then
+//                            Dim oBaseFeature As NonParametricBaseFeature
+//                            Set oBaseFeature = oComp.Features.NonParametricBaseFeatures.Item(1)
+//                            oBaseFeature.Edit
+//                            Dim basebody As SurfaceBody
+//                            Set basebody = oBaseFeature.BaseSolidBody
+
+
+//                            Dim oColl As FaceCollection
+//                            Set oColl = ThisApplication.TransientObjects.CreateFaceCollection
+
+
+//                            Dim ff As Face
+//                            For Each ff In basebody.Faces
+//                                If ff.InternalName = f.InternalName Then
+//                                    oColl.Add ff
+//                                    oBaseFeature.DeleteFaces oColl
+//                                End If
+//                            Next
+
+//                            oBaseFeature.ExitEdit
+//                        End If
+//                    Next
+//                End If
+//            Next
+//        Next
+//    End If
+
+
+//End Sub
