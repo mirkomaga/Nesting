@@ -27,19 +27,34 @@ namespace Nesting
             oDoc = (PartDocument) iApp.ActiveDocument;
 
             // ! Imposto SheetMetalDocument
-            //setSheetMetalDocument(oDoc);
+            setSheetMetalDocument(oDoc);
 
             // ! Imposto thickness
-            //setThickness(oDoc);
+            setThickness(oDoc);
 
             // ! Elimino raggiature
-            //List<string> faceCollToKeep = deleteFillet(oDoc);
+            List<string> faceCollToKeep = deleteFillet(oDoc);
 
             // ! Elimino facce
-            //deleteFace(oDoc, faceCollToKeep);
+            deleteFace(oDoc, faceCollToKeep);
 
             // ! Creo Profilo
             createProfile(oDoc);
+
+            // ! Creo Raggiature
+            createFillet(oDoc);
+
+            // ! Cerco le lavorazioni
+            IDictionary<Face, List<Lavorazione>> lavorazione = detectLavorazioni(oDoc);
+
+            // ! Creo sketch lavorazioni
+            List<string>  nomeSketch = createSketchLavorazione(oDoc, lavorazione);
+
+            // ! Elimino con direct le lavorazioni
+            deleteLavorazione(oDoc);
+
+            // ! Cut lavorazione
+            createCutLavorazione(oDoc, nomeSketch);
         }
         public static void getIstance()
         {
@@ -212,6 +227,179 @@ namespace Nesting
             PartFeatures oFeat = oCompDef.Features;
 
             oFeat.ThickenFeatures.Add(oFaceColl, oCompDef.Thickness.Value, PartFeatureExtentDirectionEnum.kNegativeExtentDirection, PartFeatureOperationEnum.kJoinOperation, true);
+        }
+        public static void createFillet(PartDocument oDoc)
+        {
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            SheetMetalFeatures sFeatures = (SheetMetalFeatures)oCompDef.Features;
+
+            foreach (Edge oEdge in oCompDef.SurfaceBodies[1].ConcaveEdges)
+            {
+                int tmpCount = oCompDef.SurfaceBodies[1].ConcaveEdges.Count;
+
+                try
+                {
+                    EdgeCollection oBendEdges = iApp.TransientObjects.CreateEdgeCollection();
+
+                    oBendEdges.Add(oEdge);
+
+                    BendDefinition oBendDef = sFeatures.BendFeatures.CreateBendDefinition(oBendEdges);
+
+                    BendFeature oBendFeature = sFeatures.BendFeatures.Add(oBendDef);
+
+                    if (tmpCount != oCompDef.SurfaceBodies[1].ConcaveEdges.Count)
+                    {
+                        createFillet(oDoc);
+                        break;
+                    }
+                }
+                catch { }
+            }
+        }
+        public static IDictionary<Face, List<Lavorazione>> detectLavorazioni(PartDocument oDoc)
+        {
+            IDictionary<Face, List<Lavorazione>> result = new Dictionary<Face, List<Lavorazione>>();
+
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            FaceCollection oFaceColl = oCompDef.Bends[1].FrontFaces[1].TangentiallyConnectedFaces;
+            oFaceColl.Add(oCompDef.Bends[1].FrontFaces[1]);
+
+            foreach (Face f in oFaceColl)
+            {
+                if (f.EdgeLoops.Count > 1)
+                {
+                    coloroEntita(oDoc, 255,0,0,f);
+
+                    List<Lavorazione> lavorazione = IdentificazioneEntita.main(f.EdgeLoops, iApp);
+
+                    if (lavorazione.Count > 0)
+                    {
+                        result.Add(f, lavorazione);
+                    }
+                }
+            }
+
+            return result;
+        }
+        public static List<string> createSketchLavorazione(PartDocument oDoc, IDictionary<Face, List<Lavorazione>> lavorazione)
+        {
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            List<string> result = new List<string>();
+
+            int index = 1;
+            foreach (var x in lavorazione) 
+            {
+                Face oFace = x.Key;
+                List<Lavorazione> lavList = x.Value;
+
+                foreach (Lavorazione lav in lavList)
+                {
+                    PlanarSketch oSketch = oCompDef.Sketches.Add(oFace, false);
+
+                    foreach(Edge oEdge in lav.oEdgeColl_)
+                    {
+                        oSketch.AddByProjectingEntity(oEdge);
+                    }
+
+                    string nameSketch = lav.nameLav_ + "_" + index;
+                    oSketch.Name = nameSketch;
+                    result.Add(nameSketch);
+
+                    index++;
+                }
+            }
+
+            return result;
+        }
+        public static void deleteLavorazione(PartDocument oDoc)
+        {
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+            int numeroFacceTan = oCompDef.Bends.Count * 2;
+
+            NonParametricBaseFeature oBaseFeature = oCompDef.Features.NonParametricBaseFeatures[1];
+
+            oBaseFeature.Edit();
+
+            SurfaceBody basebody = oBaseFeature.BaseSolidBody;
+
+            foreach (Face f in basebody.Faces)
+            {
+                if(f.TangentiallyConnectedFaces.Count == numeroFacceTan)
+                {
+                    string nameFace = f.InternalName;
+
+                    ObjectCollection oColl = iApp.TransientObjects.CreateObjectCollection();
+
+                    foreach (EdgeLoop oEdgeLoops in f.EdgeLoops)
+                    {
+                        Edges oEdges = oEdgeLoops.Edges;
+
+                        string lav = IdentificazioneEntita.whois(oEdges);
+
+                        if (!string.IsNullOrEmpty(lav))
+                        {
+                            Edge oEdge = oEdges[1];
+
+                            Faces oFaceColl = oEdge.Faces;
+
+                            foreach (Face oFaceLav in oFaceColl)
+                            {
+                                if (oFaceLav.InternalName != nameFace)
+                                {
+                                    oColl.Add(oFaceLav);
+
+                                    foreach (Face oFaceLavTang in oFaceLav.TangentiallyConnectedFaces)
+                                    {
+                                        oColl.Add(oFaceLavTang);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (oColl.Count > 0)
+                    {
+                        try
+                        {
+                            oBaseFeature.DeleteFaces(oColl);
+                        }
+                        catch
+                        {
+
+                        }
+                    }
+                }
+            }
+            oBaseFeature.ExitEdit();
+        }
+        public static void createCutLavorazione(PartDocument oDoc, List<string> nomeSketch)
+        {
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            foreach (string nameS in nomeSketch)
+            {
+                try
+                {
+                    PlanarSketch oSketch = oCompDef.Sketches[nameS];
+
+                    SheetMetalFeatures oSheetMetalFeatures = (SheetMetalFeatures)oCompDef.Features;
+
+                    Profile oProfile = oSketch.Profiles.AddForSolid();
+
+                    CutDefinition oCutDefinition = oSheetMetalFeatures.CutFeatures.CreateCutDefinition(oProfile);
+
+                    //oCutDefinition.SetThroughAllExtent(PartFeatureExtentDirectionEnum.kNegativeExtentDirection);
+
+                    CutFeature oCutFeature = oSheetMetalFeatures.CutFeatures.Add(oCutDefinition);
+                }
+                catch
+                {
+                    throw new Exception("Nome sketch non esiste: " + nameS);
+                }
+            }
         }
     }
 }

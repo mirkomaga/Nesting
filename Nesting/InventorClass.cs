@@ -669,7 +669,7 @@ namespace Nesting
                     {
                         foreach (EdgeLoop el in f.EdgeLoops)
                         {
-                            Edges entita = IdentificazioneEntita.main(el.Edges, iApp);
+                            //Edges entita = IdentificazioneEntita.main(el.Edges, iApp);
 
                             PlanarSketch sketch = oCompDef.Sketches.Add(f, false);
 

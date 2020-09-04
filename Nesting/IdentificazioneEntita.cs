@@ -18,81 +18,69 @@ namespace Nesting
 {
     class IdentificazioneEntita
     {
-        public static Edges main(Edges oEdges, Inventor.Application iApp)
+        public static List<Lavorazione> main(EdgeLoops oEdgeLoops, Inventor.Application iApp)
         {
-            SketchEntity result = null;
+            List<Lavorazione> result = new List<Lavorazione>();
 
-            IDictionary<CurveTypeEnum, int> counter = new Dictionary<CurveTypeEnum, int>();
-
-            foreach (Edge e in oEdges)
+            foreach (EdgeLoop oEdgeLoop in oEdgeLoops)
             {
-                if (!counter.ContainsKey(e.GeometryType))
+                string nameLav = whois(oEdgeLoop.Edges);
+
+                if (!string.IsNullOrEmpty(nameLav))
                 {
-                    counter[e.GeometryType] = 0;
+                    EdgeCollection oEdgeColl = iApp.TransientObjects.CreateEdgeCollection();
+
+                    foreach (Edge oEdge in oEdgeLoop.Edges)
+                    {
+                        oEdgeColl.Add(oEdge);
+                    }
+
+                    result.Add(new Lavorazione(nameLav, oEdgeColl));
                 }
-                counter[e.GeometryType] = counter[e.GeometryType] + 1;
             }
 
-            IdentificazioneEntita.gestiscoRisultati(counter, oEdges, iApp);
-
-            return oEdges;
+            return result;
         }
-
-        public static void gestiscoRisultati(IDictionary<CurveTypeEnum, int> data, Edges oEdges, Inventor.Application iApp)
+        public static string whois(Edges oEdges)
         {
-            SketchEntity result = null;
+            string nameLav = null;
 
-            // ! ASOLA
-            if (data.ContainsKey(CurveTypeEnum.kLineSegmentCurve) && data.ContainsKey(CurveTypeEnum.kCircularArcCurve) 
-                &&
-                data[CurveTypeEnum.kLineSegmentCurve] == 2 && data[CurveTypeEnum.kCircularArcCurve] == 2
-                )
+            IDictionary<CurveTypeEnum, int> typeOfEdge = new Dictionary<CurveTypeEnum, int>();
+
+            foreach (Edge oEdge in oEdges)
             {
-                // ? centro
-                Point centro = null;
-
-                // ? SweepAngle 
-                Double sweepAngle = 0;
-
-                // ? Width
-                Double width = 0;
-
-                Edge tmpEdge = null;
-                foreach (Edge e in oEdges)
+                if (!typeOfEdge.ContainsKey(oEdge.GeometryType))
                 {
-                    if (e.GeometryType == CurveTypeEnum.kLineSegmentCurve)
-                    {
-                        if (tmpEdge == null)
-                        {
-                            tmpEdge = e;
-                        }
-                        else
-                        {
-                            width = iApp.MeasureTools.GetMinimumDistance(tmpEdge, e);
-                            break;
-                        }
-                    }
+                    typeOfEdge.Add(oEdge.GeometryType, 0);
                 }
 
-                // ? startP
-                Point startPoint = null;
-
-                foreach (Edge e in oEdges)
-                {
-                    if (e.GeometryType == CurveTypeEnum.kCircularArcCurve)
-                    {
-                        PartDocument oDoc = (PartDocument)iApp.ActiveDocument;
-                        SheetMetalComponentDefinition oComp = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
-
-                        Vertex v = e.StartVertex;
-
-                        WorkPoint oWp = oComp.WorkPoints.AddByPoint(v);
-                        //oWp.SetByPoint();
-                        
-                        break;
-                    }
-                }
+                typeOfEdge[oEdge.GeometryType] ++;
             }
+
+            // ! Foro
+            if (typeOfEdge.ContainsKey(CurveTypeEnum.kCircleCurve) && typeOfEdge[CurveTypeEnum.kCircleCurve] == 1)
+            {
+                nameLav = "foro";
+            }
+
+            // ! Asola
+            if (typeOfEdge.ContainsKey(CurveTypeEnum.kCircularArcCurve) && typeOfEdge.ContainsKey(CurveTypeEnum.kLineSegmentCurve) &&
+                typeOfEdge[CurveTypeEnum.kLineSegmentCurve] == 2 && typeOfEdge[CurveTypeEnum.kCircularArcCurve] == 2)
+            {
+                nameLav = "asola";
+            }
+
+            return nameLav;
         }
+    }
+    public struct Lavorazione
+    {
+        public Lavorazione(string nameLav, EdgeCollection oEdgeColl)
+        {
+            nameLav_ = nameLav;
+            oEdgeColl_ = oEdgeColl;
+        }
+        public string nameLav_ { get; private set; }
+        public EdgeCollection oEdgeColl_ { get; private set; }
     }
 }
