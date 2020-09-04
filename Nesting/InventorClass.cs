@@ -176,7 +176,7 @@ namespace Nesting
 
             iApp.ActiveView.GoHome();
         }
-        private static void getIstance()
+        public static void getIstance()
         {
             try
             {
@@ -635,6 +635,8 @@ namespace Nesting
                                         oAsset = oAssetLib.CopyTo(oSheetMetalDoc);
                                     }
 
+                                    InventorClass.gestiscoLavorazioni(oSheetMetalDoc, oCompDef);
+
                                     InventorClass.settingAssetsToFaces(facce["lunga"], oAsset);
                                 }
                                 catch
@@ -647,6 +649,41 @@ namespace Nesting
                             iApp.ActiveView.GoHome();
                             oSheetMetalDoc.Save();
                             oSheetMetalDoc.Close();
+                        }
+                    }
+                }
+            }
+        }
+        public static void gestiscoLavorazioni(PartDocument oDoc,SheetMetalComponentDefinition oCompDef)
+        {
+            if (oCompDef.Bends.Count > 0)
+            {
+                FaceCollection oFaceColl = oCompDef.Bends[1].BackFaces[1].TangentiallyConnectedFaces;
+
+                oFaceColl.Add(oCompDef.Bends[1].BackFaces[1]);
+
+                foreach (Face f in oFaceColl)
+                {
+                    oDoc.SelectSet.Select(f);
+                    if (f.EdgeLoops.Count > 1)
+                    {
+                        foreach (EdgeLoop el in f.EdgeLoops)
+                        {
+                            Edges entita = IdentificazioneEntita.main(el.Edges, iApp);
+
+                            PlanarSketch sketch = oCompDef.Sketches.Add(f, false);
+
+                            //Point p1 = Point();
+                            //p1.X = 0;
+                            //p1.Y = 0;
+                            //p1.Z = 0;
+
+                            //Point p2;
+                            //p2.X = 0;
+                            //p2.Y = 0;
+                            //p2.Z = 0;
+
+                            //sketch.AddArcSlotByCenterPointArc(new Inventor.Point(0,0,0), new Inventor.Point(20, 0, 0), 1, 5);
                         }
                     }
                 }
@@ -1471,6 +1508,81 @@ namespace Nesting
 //            Next
 //        Next
 //    End If
+
+
+//End Sub
+
+
+//Dim oDoc As PartDocument
+//Dim oComp As SheetMetalComponentDefinition
+//Dim oSheetFeat As SheetMetalFeatures
+//Dim oFeats As PartFeatures
+//Dim oFeat As PartFeature
+//Dim oAssets As Assets
+//Dim oAsset As Asset
+
+//Dim frontFacesArea As Double
+//Dim backFacesArea As Double
+
+//Dim oFace As Face
+//Dim oSketchFace As Face
+
+//Dim oSketchEnt As SketchEntity
+//Dim oLine As SketchLine
+//Dim oArc As SketchArc
+
+//Dim oSet1 As HighlightSet
+//Dim oSet2 As HighlightSet
+
+//Sub main()
+//    Set oDoc = ThisApplication.ActiveDocument
+
+
+//    Set oComp = oDoc.ComponentDefinition
+
+
+//    Dim oFace As Face
+
+
+//    Set oFace = oComp.SurfaceBodies.Item(1).Faces.Item(8)
+
+
+//    Dim e As Edge
+
+
+//    Dim oEdgeColl As EdgeCollection
+//    Set oEdgeColl = ThisApplication.TransientObjects.CreateEdgeCollection
+//    For Each e In oFace.EdgeLoops.Item(2).Edges
+//        oEdgeColl.Add e
+//    Next
+    
+//'    Dim oWorkPointStart As WorkPoint
+//'    Set oWorkPointStart = oComp.WorkPoints.AddByMidPoint(oFace.EdgeLoops.Item(2).Edges.Item(3))
+//'
+//'    Dim oWorkPointCenter As WorkPoint
+//'    Set oWorkPointCenter = oComp.WorkPoints.AddAtCentroid(oEdgeColl)
+//'
+//'    Dim width As Double
+//'    width = ThisApplication.MeasureTools.GetMinimumDistance(oFace.EdgeLoops.Item(2).Edges.Item(2), oFace.EdgeLoops.Item(2).Edges.Item(4))
+//'
+//'
+//'    Dim p1 As Point2d
+//'    Set p1 = ThisApplication.TransientGeometry.CreatePoint2d(oWorkPointCenter.Point.X, oWorkPointCenter.Point.Y)
+//'
+//'    Dim p2 As Point2d
+//'    Set p2 = ThisApplication.TransientGeometry.CreatePoint2d(oWorkPointStart.Point.X, oWorkPointStart.Point.Y)
+
+
+//    Dim oSketch As PlanarSketch
+//    Set oSketch = oComp.Sketches.Add(oFace, False)
+
+
+//    For i = 2 To oFace.EdgeLoops.Count
+//        For Each oEdge In oFace.EdgeLoops.Item(i).Edges
+//            oSketch.AddByProjectingEntity oEdge
+//        Next
+//    Next
+
 
 
 //End Sub

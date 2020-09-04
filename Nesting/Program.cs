@@ -15,7 +15,8 @@ namespace Nesting
         [STAThread]
         static void Main()
         {
-            InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\Thickness\\LFM");
+            RicompongoLamiera.main(null);
+            //InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\Thickness\\LFM");
             //InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\test");
             //InventorClass.disegnaProfiloBello("C:\\Users\\edgelocal\\Desktop\\test");
             //InventorClass.disegnaProfiloBello("C:\\Users\\Mirko Magalotti\\Desktop\\test prof");
