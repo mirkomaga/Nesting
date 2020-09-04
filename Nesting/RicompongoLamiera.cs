@@ -55,6 +55,15 @@ namespace Nesting
 
             // ! Cut lavorazione
             createCutLavorazione(oDoc, nomeSketch);
+
+            // ! Aggiungo piano nel mezzo
+            WorkPlane oWpReference = addPlaneInTheMiddleOfBox(oDoc);
+
+            // ! Aggiungo proiezione cut
+            addProjectCut(oDoc, oWpReference);
+
+            // ! Coloro lato bello
+            setTexture(oDoc);
         }
         public static void getIstance()
         {
@@ -270,8 +279,6 @@ namespace Nesting
             {
                 if (f.EdgeLoops.Count > 1)
                 {
-                    coloroEntita(oDoc, 255,0,0,f);
-
                     List<Lavorazione> lavorazione = IdentificazioneEntita.main(f.EdgeLoops, iApp);
 
                     if (lavorazione.Count > 0)
@@ -302,6 +309,7 @@ namespace Nesting
                     foreach(Edge oEdge in lav.oEdgeColl_)
                     {
                         oSketch.AddByProjectingEntity(oEdge);
+                        oSketch.Visible = false;
                     }
 
                     string nameSketch = lav.nameLav_ + "_" + index;
@@ -399,6 +407,272 @@ namespace Nesting
                 {
                     throw new Exception("Nome sketch non esiste: " + nameS);
                 }
+            }
+        }
+        public static WorkPlane addPlaneInTheMiddleOfBox(PartDocument oDoc)
+        {
+            SheetMetalComponentDefinition oComp = (SheetMetalComponentDefinition) oDoc.ComponentDefinition;
+
+            Box oRb = oComp.SurfaceBodies[1].RangeBox;
+
+            TransientBRep oTransientBRep = iApp.TransientBRep;
+
+            SurfaceBody oBody = oTransientBRep.CreateSolidBlock(oRb);
+
+            NonParametricBaseFeature oBaseFeature = oComp.Features.NonParametricBaseFeatures.Add(oBody);
+
+            FaceCollection oFaceColl = iApp.TransientObjects.CreateFaceCollection();
+
+            foreach (Face f in oBaseFeature.SurfaceBodies[1].Faces)
+            {
+                WorkPlane tmpWp = oComp.WorkPlanes.AddByPlaneAndOffset(f, 0);
+
+                if (tmpWp.Plane.IsParallelTo[oComp.WorkPlanes[1].Plane])
+                {
+                    oFaceColl.Add(f);
+                }
+
+                tmpWp.Delete();
+            }
+
+            WorkPlane wpWork = null;
+            if (oFaceColl.Count >= 2)
+            {
+                WorkPlane wp1 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl[1], 0);
+                WorkPlane wp2 = oComp.WorkPlanes.AddByPlaneAndOffset(oFaceColl[2], 0);
+
+                wpWork = oComp.WorkPlanes.AddByTwoPlanes(wp1, wp2);
+                wpWork.Name = "wpWorkReference";
+                wpWork.Grounded = true;
+                wpWork.Visible = false;
+
+                oBaseFeature.Delete(false, true, true);
+
+                wp1.Delete();
+                wp2.Delete();
+            }
+
+            return wpWork;
+        }
+        public static void addProjectCut(PartDocument oDoc, WorkPlane oWpReference)
+        {
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            WorkPlane oWpWork = oCompDef.WorkPlanes.AddByPlaneAndOffset(oWpReference, 0);
+            oWpWork.Name = "wpWork";
+            oWpWork.Visible = false;
+
+            PlanarSketch oSketch = oCompDef.Sketches.Add(oWpWork);
+            ProjectedCut oProjectCut = oSketch.ProjectedCuts.Add();
+
+            // TODO RICORDARSI DI FARE SE DIVERSO DA 2
+            int tmpSegmThk = countThicknessSegment(oProjectCut.SketchEntities);
+
+            List<ObjectCollection> dataLine = splittoLinea(oProjectCut.SketchEntities);
+
+            ObjectCollection linea = lengthPerimetro();
+
+            TransientGeometry oTransGeom = iApp.TransientGeometry;
+            UnitVector oNormalVector = oSketch.PlanarEntityGeometry.Normal;
+            UnitVector2d oLineDir = linea[1].Geometry.Direction;
+            UnitVector oLineVector = (UnitVector)oTransGeom.CreateUnitVector(oLineDir.X, oLineDir.Y, 0);
+            UnitVector oOffsetVector = (UnitVector)oLineVector.CrossProduct(oNormalVector);
+            UnitVector oDesiredVector = (UnitVector)oTransGeom.CreateUnitVector(0, 1, 0);
+
+            bool bNaturalOffsetDir;
+
+            if (oOffsetVector.IsEqualTo(oDesiredVector))
+            {
+                bNaturalOffsetDir = true;
+            }
+            else
+            {
+                bNaturalOffsetDir = false;
+            }
+
+            SketchEntitiesEnumerator oSSketchEntitiesEnum = oSketch.OffsetSketchEntitiesUsingDistance(linea, 0.5, bNaturalOffsetDir, false);
+            oProjectCut.Delete();
+
+            coloroLinea(oSketch.SketchEntities);
+            
+            int countThicknessSegment(SketchEntitiesEnumerator oSketchEntities)
+            {
+                int result = 0;
+
+                foreach (SketchEntity e in oSketchEntities)
+                {
+                    if (e.Type == ObjectTypeEnum.kSketchLineObject)
+                    {
+                        SketchLine oSketchLine = (SketchLine) e;
+
+                        double length = Math.Round(oSketchLine.Length * 100)/100;
+
+                        if (length == oCompDef.Thickness.Value)
+                        {
+                            result++;
+                        }
+                    }
+                }
+
+                return result;
+            }
+            List<ObjectCollection> splittoLinea(SketchEntitiesEnumerator oSketchEntities)
+            {
+                List<ObjectCollection> tmp = new List<ObjectCollection>();
+                tmp.Add(iApp.TransientObjects.CreateObjectCollection());
+                tmp.Add(iApp.TransientObjects.CreateObjectCollection());
+                tmp.Add(iApp.TransientObjects.CreateObjectCollection());
+
+                int indice = 0;
+                foreach (SketchEntity oSketchEntity in oSketchEntities)
+                {
+                    if (oSketchEntity.Type != ObjectTypeEnum.kSketchPointObject)
+                    {
+                        if (oSketchEntity.Type == ObjectTypeEnum.kSketchLineObject) 
+                        {
+                            SketchLine oSketchLine = (SketchLine)oSketchEntity;
+                            
+                            if (Math.Round(oSketchLine.Length * 100) / 100 == oCompDef.Thickness.Value)
+                            {
+                                if(indice == 0)
+                                {
+                                    indice = 1;
+                                }
+                                else
+                                {
+                                    indice = 2;
+                                }
+                            }
+                            else
+                            {
+                                tmp[indice].Add(oSketchEntity);
+                            }
+                        }
+
+                        if (oSketchEntity.Type == ObjectTypeEnum.kSketchArcObject) 
+                        {
+                            tmp[indice].Add(oSketchEntity);
+                        }
+                    }
+                }
+
+                foreach (SketchEntity oSketchEntity in tmp[0])
+                {
+                    tmp[2].Add(oSketchEntity);
+                }
+
+                List<ObjectCollection> result = new List<ObjectCollection>();
+                result.Add(tmp[1]);
+                result.Add(tmp[2]);
+
+                return result;
+            }
+            void coloroLinea(SketchEntitiesEnumerator oSketchEntities)
+            {
+                foreach(SketchEntity oSe in oSketchEntities)
+                {
+                    // TODO coloro
+                    Console.WriteLine("COLORO");
+                }
+            }
+            ObjectCollection lengthPerimetro()
+            {
+                double l0 = 0;
+                double l1 = 0;
+
+                foreach (SketchEntity oSE in dataLine[0])
+                {
+                    if (oSE.Type == ObjectTypeEnum.kSketchLineObject)
+                    {
+                        SketchLine se = (SketchLine)oSE;
+
+                        l0 = l0 + se.Length;
+                    }
+                    else if (oSE.Type == ObjectTypeEnum.kSketchArcObject)
+                    {
+                        SketchArc se = (SketchArc)oSE;
+
+                        l0 = l0 + se.Length;
+                    }
+                }
+                foreach (SketchEntity oSE in dataLine[1])
+                {
+                    if (oSE.Type == ObjectTypeEnum.kSketchLineObject)
+                    {
+                        SketchLine se = (SketchLine)oSE;
+
+                        l1 = l1 + se.Length;
+                    }
+                    else if (oSE.Type == ObjectTypeEnum.kSketchArcObject)
+                    {
+                        SketchArc se = (SketchArc)oSE;
+
+                        l1 = l1 + se.Length;
+                    }
+                }
+
+                if (l0>l1)
+                {
+                    return dataLine[0];
+                }
+                else
+                {
+                    return dataLine[1];
+                }
+            }
+        }
+        public static void setTexture(PartDocument oDoc)
+        {
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            FaceCollection fcFront = oCompDef.Bends[1].FrontFaces[1].TangentiallyConnectedFaces;
+            fcFront.Add(oCompDef.Bends[1].FrontFaces[1]);
+
+            FaceCollection fcBack = oCompDef.Bends[1].BackFaces[1].TangentiallyConnectedFaces;
+            fcBack.Add(oCompDef.Bends[1].BackFaces[1]);
+
+            double area0 = 0;
+            foreach (Face oFace in fcFront)
+            {
+                area0 = area0+oFace.Evaluator.Area;
+            }
+
+            double area1 = 0;
+            foreach (Face oFace in fcBack)
+            {
+                area1 = area1 + oFace.Evaluator.Area;
+            }
+
+            Asset oAsset;
+
+            try
+            {
+                oAsset = oDoc.Assets["RawSide"];
+            }
+            catch (System.ArgumentException e)
+            {
+                Assets oAssets = oDoc.Assets;
+
+                AssetLibrary oAssetsLib = iApp.AssetLibraries["3D_Pisa_Col"];
+                Asset oAssetLib = oAssetsLib.AppearanceAssets["RawSide"];
+
+                oAsset = oAssetLib.CopyTo(oDoc);
+            }
+
+            FaceCollection fc;
+
+            if (area0>area1)
+            {
+                fc = fcFront;
+            }
+            else
+            {
+                fc = fcBack;
+            }
+
+            foreach (Face f in fc)
+            {
+                f.Appearance = oAsset;
             }
         }
     }
