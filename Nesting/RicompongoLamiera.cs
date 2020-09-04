@@ -19,51 +19,65 @@ namespace Nesting
     class RicompongoLamiera
     {
         public static Inventor.Application iApp = null;
-        public static void main(PartDocument oDoc)
+        public static void main(string path)
         {
             // ! prendo instanza Inventor
             getIstance();
 
-            oDoc = (PartDocument) iApp.ActiveDocument;
+            //oDoc = (PartDocument) iApp.ActiveDocument;
+            string[] listFiles = System.IO.Directory.GetFiles(@path, "*.ipt");
 
-            // ! Imposto SheetMetalDocument
-            setSheetMetalDocument(oDoc);
+            int counter = 0;
+            foreach (string file in listFiles)
+            {
+                counter++;
 
-            // ! Imposto thickness
-            setThickness(oDoc);
+                if (System.IO.Path.GetExtension(file) == ".ipt")
+                {
+                    PartDocument oDoc = (PartDocument)iApp.Documents.Open(@file);
 
-            // ! Elimino raggiature
-            List<string> faceCollToKeep = deleteFillet(oDoc);
+                    // ! Imposto SheetMetalDocument
+                    setSheetMetalDocument(oDoc);
 
-            // ! Elimino facce
-            deleteFace(oDoc, faceCollToKeep);
+                    // ! Imposto thickness
+                    setThickness(oDoc);
 
-            // ! Creo Profilo
-            createProfile(oDoc);
+                    // ! Elimino raggiature
+                    List<string> faceCollToKeep = deleteFillet(oDoc);
 
-            // ! Creo Raggiature
-            createFillet(oDoc);
+                    // ! Elimino facce
+                    deleteFace(oDoc, faceCollToKeep);
 
-            // ! Cerco le lavorazioni
-            IDictionary<Face, List<Lavorazione>> lavorazione = detectLavorazioni(oDoc);
+                    // ! Creo Profilo
+                    createProfile(oDoc);
 
-            // ! Creo sketch lavorazioni
-            List<string>  nomeSketch = createSketchLavorazione(oDoc, lavorazione);
+                    // ! Creo Raggiature
+                    createFillet(oDoc);
 
-            // ! Elimino con direct le lavorazioni
-            deleteLavorazione(oDoc);
+                    // ! Cerco le lavorazioni
+                    IDictionary<Face, List<Lavorazione>> lavorazione = detectLavorazioni(oDoc);
 
-            // ! Cut lavorazione
-            createCutLavorazione(oDoc, nomeSketch);
+                    // ! Creo sketch lavorazioni
+                    List<string>  nomeSketch = createSketchLavorazione(oDoc, lavorazione);
 
-            // ! Aggiungo piano nel mezzo
-            WorkPlane oWpReference = addPlaneInTheMiddleOfBox(oDoc);
+                    // ! Elimino con direct le lavorazioni
+                    deleteLavorazione(oDoc);
 
-            // ! Aggiungo proiezione cut
-            addProjectCut(oDoc, oWpReference);
+                    // ! Cut lavorazione
+                    createCutLavorazione(oDoc, nomeSketch);
 
-            // ! Coloro lato bello
-            setTexture(oDoc);
+                    // ! Aggiungo piano nel mezzo
+                    WorkPlane oWpReference = addPlaneInTheMiddleOfBox(oDoc);
+
+                    // ! Aggiungo proiezione cut
+                    addProjectCut(oDoc, oWpReference);
+
+                    // ! Coloro lato bello
+                    setTexture(oDoc);
+
+                    oDoc.Close();
+                }
+            }
         }
         public static void getIstance()
         {
@@ -90,71 +104,71 @@ namespace Nesting
         {
             SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
 
-            double thikness = 0;
-            int count = 0;
+            Face biggestFace = getBiggestFace(oDoc);
+            
+            double thikness = Math.Round(getDistanceFromFace(biggestFace) * 100)/100;
+            //int count = 0;
 
-            foreach (Edge e in oCompDef.SurfaceBodies[1].Edges)
-            {
-                double distance = Math.Round(iApp.MeasureTools.GetMinimumDistance(e.StartVertex.Point, e.StopVertex.Point) * 100);
+            //foreach (Edge e in oCompDef.SurfaceBodies[1].Edges)
+            //{
+            //    double distance = Math.Round(iApp.MeasureTools.GetMinimumDistance(e.StartVertex.Point, e.StopVertex.Point) * 100);
                 
-                if (e.GeometryType == CurveTypeEnum.kLineSegmentCurve && distance != 0 && distance <= 50)
-                {
-                    thikness = distance/10;
-                    count++;
-                }
+            //    if (e.GeometryType == CurveTypeEnum.kLineSegmentCurve && distance != 0 && distance <= 50)
+            //    {
+            //        coloroEntita(oDoc, 255,0,0, e);
+            //        thikness = Math.Truncate(distance / 10);
+            //        count++;
+            //    }
+            //}
+
+            string toSelect = null;
+
+            switch (thikness)
+            {
+                case 0.6:
+                    toSelect = "Aluminium THK 0.6mm";
+                    break;
+                case 0.8:
+                    toSelect = "Aluminium THK 0.8mm";
+                    break;
+                case 1.0:
+                    toSelect = "Aluminium THK 1.0mm";
+                    break;
+                case 1.2:
+                    toSelect = "Aluminium THK 1.2mm";
+                    break;
+                case 1.5:
+                    toSelect = "Aluminium THK 1.5mm";
+                    break;
+                case 2.0:
+                    toSelect = "Aluminium THK 2.0mm";
+                    break;
+                case 2.5:
+                    toSelect = "Aluminium THK 2.5mm";
+                    break;
+                case 3.0:
+                    toSelect = "Aluminium THK 3.0mm";
+                    break;
+                case 4.0:
+                    toSelect = "Aluminium THK 4.0mm";
+                    break;
+                case 5.0:
+                    toSelect = "Aluminium THK 5.0mm";
+                    break;
+                default:
+                    //toSelect = "Default_mm";
+                    Console.WriteLine("SONO ENTRATO IN DEFAULT");
+                    break;
             }
 
-            if (count > 1)
+            if (!string.IsNullOrEmpty(toSelect))
             {
-                string toSelect = null;
-
-                switch (thikness)
-                {
-                    case 0.6:
-                        toSelect = "Aluminium THK 0.6mm";
-                        break;
-                    case 0.8:
-                        toSelect = "Aluminium THK 0.8mm";
-                        break;
-                    case 1.0:
-                        toSelect = "Aluminium THK 1.0mm";
-                        break;
-                    case 1.2:
-                        toSelect = "Aluminium THK 1.2mm";
-                        break;
-                    case 1.5:
-                        toSelect = "Aluminium THK 1.5mm";
-                        break;
-                    case 2.0:
-                        toSelect = "Aluminium THK 2.0mm";
-                        break;
-                    case 2.5:
-                        toSelect = "Aluminium THK 2.5mm";
-                        break;
-                    case 3.0:
-                        toSelect = "Aluminium THK 3.0mm";
-                        break;
-                    case 4.0:
-                        toSelect = "Aluminium THK 4.0mm";
-                        break;
-                    case 5.0:
-                        toSelect = "Aluminium THK 5.0mm";
-                        break;
-                    default:
-                        //toSelect = "Default_mm";
-                        Console.WriteLine("SONO ENTRATO IN DEFAULT");
-                        break;
-                }
-
-                if (!string.IsNullOrEmpty(toSelect))
-                {
-                    SheetMetalStyle oStyle = oCompDef.SheetMetalStyles[toSelect];
-                    oStyle.Activate();
-                }
-                else
-                {
-                    throw new Exception("Nessuno spessore trovato");
-                }
+                SheetMetalStyle oStyle = oCompDef.SheetMetalStyles[toSelect];
+                oStyle.Activate();
+            }
+            else
+            {
+                throw new Exception("Nessuno spessore trovato");
             }
         }
         public static void coloroEntita(PartDocument oDoc, byte r, byte g, byte b, dynamic e)
@@ -235,7 +249,7 @@ namespace Nesting
 
             PartFeatures oFeat = oCompDef.Features;
 
-            oFeat.ThickenFeatures.Add(oFaceColl, oCompDef.Thickness.Value, PartFeatureExtentDirectionEnum.kNegativeExtentDirection, PartFeatureOperationEnum.kJoinOperation, true);
+            oFeat.ThickenFeatures.Add(oFaceColl, Math.Round(oCompDef.Thickness.Value*100)/100, PartFeatureExtentDirectionEnum.kNegativeExtentDirection, PartFeatureOperationEnum.kJoinOperation, false);
         }
         public static void createFillet(PartDocument oDoc)
         {
@@ -247,6 +261,8 @@ namespace Nesting
             {
                 int tmpCount = oCompDef.SurfaceBodies[1].ConcaveEdges.Count;
 
+                coloroEntita(oDoc, 255,0,0, oEdge);
+
                 try
                 {
                     EdgeCollection oBendEdges = iApp.TransientObjects.CreateEdgeCollection();
@@ -257,11 +273,11 @@ namespace Nesting
 
                     BendFeature oBendFeature = sFeatures.BendFeatures.Add(oBendDef);
 
-                    if (tmpCount != oCompDef.SurfaceBodies[1].ConcaveEdges.Count)
-                    {
-                        createFillet(oDoc);
-                        break;
-                    }
+                    //if (tmpCount != oCompDef.SurfaceBodies[1].ConcaveEdges.Count)
+                    //{
+                    createFillet(oDoc);
+                    break;
+                    //}
                 }
                 catch { }
             }
@@ -341,6 +357,8 @@ namespace Nesting
 
                     ObjectCollection oColl = iApp.TransientObjects.CreateObjectCollection();
 
+                    List<string> listName = new List<string>();
+
                     foreach (EdgeLoop oEdgeLoops in f.EdgeLoops)
                     {
                         Edges oEdges = oEdgeLoops.Edges;
@@ -357,11 +375,18 @@ namespace Nesting
                             {
                                 if (oFaceLav.InternalName != nameFace)
                                 {
-                                    oColl.Add(oFaceLav);
-
+                                    if (!listName.Contains(oFaceLav.InternalName))
+                                    {
+                                        oColl.Add(oFaceLav);
+                                        listName.Add(oFaceLav.InternalName);
+                                    }
                                     foreach (Face oFaceLavTang in oFaceLav.TangentiallyConnectedFaces)
                                     {
-                                        oColl.Add(oFaceLavTang);
+                                        if (!listName.Contains(oFaceLavTang.InternalName))
+                                        {
+                                            oColl.Add(oFaceLavTang);
+                                            listName.Add(oFaceLavTang.InternalName);
+                                        }
                                     }
                                 }
                             }
@@ -465,8 +490,29 @@ namespace Nesting
             PlanarSketch oSketch = oCompDef.Sketches.Add(oWpWork);
             ProjectedCut oProjectCut = oSketch.ProjectedCuts.Add();
 
-            // TODO RICORDARSI DI FARE SE DIVERSO DA 2
             int tmpSegmThk = countThicknessSegment(oProjectCut.SketchEntities);
+
+            int loop = 0;
+            double offset = 1;
+            while (tmpSegmThk != 2)
+            {
+                // Devo spostare il piano se ci sono cose nel mezzo
+                oWpWork.SetByPlaneAndOffset(oWpReference, offset);
+
+                tmpSegmThk = countThicknessSegment(oProjectCut.SketchEntities);
+                loop++;
+
+                offset += offset;
+
+                if (loop == 20)
+                {
+                    throw new Exception("Numero massimo offset piano.");
+                }
+            }
+
+            oProjectCut.Delete();
+
+            oProjectCut = oSketch.ProjectedCuts.Add();
 
             List<ObjectCollection> dataLine = splittoLinea(oProjectCut.SketchEntities);
 
@@ -493,7 +539,7 @@ namespace Nesting
             SketchEntitiesEnumerator oSSketchEntitiesEnum = oSketch.OffsetSketchEntitiesUsingDistance(linea, 0.5, bNaturalOffsetDir, false);
             oProjectCut.Delete();
 
-            coloroLinea(oSketch.SketchEntities);
+            styleSketch(oSketch.SketchEntities);
             
             int countThicknessSegment(SketchEntitiesEnumerator oSketchEntities)
             {
@@ -507,7 +553,7 @@ namespace Nesting
 
                         double length = Math.Round(oSketchLine.Length * 100)/100;
 
-                        if (length == oCompDef.Thickness.Value)
+                        if (length == Math.Round(oCompDef.Thickness.Value*100)/100)
                         {
                             result++;
                         }
@@ -532,7 +578,7 @@ namespace Nesting
                         {
                             SketchLine oSketchLine = (SketchLine)oSketchEntity;
                             
-                            if (Math.Round(oSketchLine.Length * 100) / 100 == oCompDef.Thickness.Value)
+                            if (Math.Round(oSketchLine.Length * 100) / 100 == Math.Round(oCompDef.Thickness.Value*100)/100)
                             {
                                 if(indice == 0)
                                 {
@@ -567,12 +613,24 @@ namespace Nesting
 
                 return result;
             }
-            void coloroLinea(SketchEntitiesEnumerator oSketchEntities)
+            void styleSketch(SketchEntitiesEnumerator oSketchEntities)
             {
-                foreach(SketchEntity oSe in oSketchEntities)
+                foreach (SketchEntity oSe in oSketchEntities)
                 {
-                    // TODO coloro
-                    Console.WriteLine("COLORO");
+                    if (oSe.Type == ObjectTypeEnum.kSketchLineObject)
+                    {
+                        SketchLine se = (SketchLine)oSe;
+
+                        se.OverrideColor = iApp.TransientObjects.CreateColor(0, 0, 255);
+                        se.LineType = LineTypeEnum.kDashDottedLineType;
+                    }
+                    else if (oSe.Type == ObjectTypeEnum.kSketchArcObject)
+                    {
+                        SketchArc sa = (SketchArc)oSe;
+
+                        sa.OverrideColor = iApp.TransientObjects.CreateColor(0, 0, 255);
+                        sa.LineType = LineTypeEnum.kDashDottedLineType;
+                    }
                 }
             }
             ObjectCollection lengthPerimetro()
@@ -674,6 +732,48 @@ namespace Nesting
             {
                 f.Appearance = oAsset;
             }
+        }
+        public static Face getBiggestFace(PartDocument oDoc)
+        {
+            SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            Face biggestFace = null;
+
+            double area = 0;
+
+            foreach (Face f in oCompDef.SurfaceBodies[1].Faces)
+            {
+                if (f.Evaluator.Area > area)
+                {
+                    area = f.Evaluator.Area;
+                    biggestFace = f;
+                }
+            }
+
+            return biggestFace;
+        }
+        public static double getDistanceFromFace(Face fc)
+        {
+            Inventor.Point origin = fc.PointOnFace;
+
+            double[] pt = new double[3] { origin.X, origin.Y, origin.Z };
+
+            double[] n = new double[3];
+
+            fc.Evaluator.GetNormalAtPoint(pt, ref n);
+
+            UnitVector normal = iApp.TransientGeometry.CreateUnitVector(-n[0], -n[1], -n[2]);
+
+            SurfaceBody body = fc.Parent;
+
+            ObjectsEnumerator objects;
+            ObjectsEnumerator pts;
+
+            body.FindUsingRay(origin, normal, 0.001, out objects, out pts, true);
+
+            double dist = iApp.MeasureTools.GetMinimumDistance(origin, objects[2]) * 10;
+
+            return dist;
         }
     }
 }
