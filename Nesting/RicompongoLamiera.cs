@@ -19,7 +19,7 @@ namespace Nesting
     class RicompongoLamiera
     {
         public static Inventor.Application iApp = null;
-        public static void main(string path)
+        public static void main_(string path)
         {
             // ! prendo instanza Inventor
             getIstance();
@@ -78,6 +78,77 @@ namespace Nesting
                     oDoc.Close();
                 }
             }
+        }
+        public static void main(string path)
+        {
+            // ! prendo instanza Inventor
+            getIstance();
+
+            PartDocument oDoc = (PartDocument) iApp.ActiveDocument;
+
+            // ! Imposto SheetMetalDocument
+            setSheetMetalDocument(oDoc);
+
+            // ! Imposto thickness
+            setThickness(oDoc);
+
+            SheetMetalComponentDefinition oComp = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
+
+            WorkPlane oWpReference = null;
+            List<string> nameWp = new List<string>();
+            bool manual = false;
+            foreach (WorkPlane oWp in oComp.WorkPlanes)
+            {
+                nameWp.Add(oWp.Name);
+                if (oWp.Name == "manualPlane")
+                {
+                    oWpReference = oWp;
+                    manual = true;
+                }
+            }
+
+            if (!manual)
+            {
+                // ! Elimino raggiature
+                List<string> faceCollToKeep = deleteFillet(oDoc);
+
+                // ! Elimino facce
+                deleteFace(oDoc, faceCollToKeep);
+
+                // ! Creo Profilo
+                createProfile(oDoc);
+
+                // ! Creo Raggiature
+                createFillet(oDoc);
+
+                // ! Cerco le lavorazioni
+                IDictionary<Face, List<Lavorazione>> lavorazione = detectLavorazioni(oDoc);
+
+                // ! Creo sketch lavorazioni
+                List<string> nomeSketch = createSketchLavorazione(oDoc, lavorazione);
+
+                // ! Elimino con direct le lavorazioni
+                deleteLavorazione(oDoc);
+
+                // ! Cut lavorazione
+                createCutLavorazione(oDoc, nomeSketch);
+
+                // ! Aggiungo piano nel mezzo
+                oWpReference = addPlaneInTheMiddleOfBox(oDoc);
+
+                // ! Aggiungo proiezione cut
+                addProjectCut(oDoc, oWpReference, manual);
+
+                // ! Coloro lato bello
+            }
+            else
+            {
+                addProjectCut(oDoc, oWpReference, manual);
+            }
+            
+            setTexture(oDoc);
+
+            oDoc.Close();
         }
         public static void getIstance()
         {
@@ -479,7 +550,7 @@ namespace Nesting
 
             return wpWork;
         }
-        public static void addProjectCut(PartDocument oDoc, WorkPlane oWpReference)
+        public static void addProjectCut(PartDocument oDoc, WorkPlane oWpReference, bool manual = false)
         {
             SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
 
@@ -490,29 +561,32 @@ namespace Nesting
             PlanarSketch oSketch = oCompDef.Sketches.Add(oWpWork);
             ProjectedCut oProjectCut = oSketch.ProjectedCuts.Add();
 
-            int tmpSegmThk = countThicknessSegment(oProjectCut.SketchEntities);
-
-            int loop = 0;
-            double offset = 1;
-            while (tmpSegmThk != 2)
+            if (!manual)
             {
-                // Devo spostare il piano se ci sono cose nel mezzo
-                oWpWork.SetByPlaneAndOffset(oWpReference, offset);
+                int tmpSegmThk = countThicknessSegment(oProjectCut.SketchEntities);
 
-                tmpSegmThk = countThicknessSegment(oProjectCut.SketchEntities);
-                loop++;
-
-                offset += offset;
-
-                if (loop == 20)
+                int loop = 0;
+                double offset = 1;
+                while (tmpSegmThk != 2)
                 {
-                    throw new Exception("Numero massimo offset piano.");
+                    // Devo spostare il piano se ci sono cose nel mezzo
+                    oWpWork.SetByPlaneAndOffset(oWpReference, offset);
+
+                    tmpSegmThk = countThicknessSegment(oProjectCut.SketchEntities);
+                    loop++;
+
+                    offset += offset;
+
+                    if (loop == 20)
+                    {
+                        throw new Exception("Numero massimo offset piano.");
+                    }
                 }
+
+                oProjectCut.Delete();
+
+                oProjectCut = oSketch.ProjectedCuts.Add();
             }
-
-            oProjectCut.Delete();
-
-            oProjectCut = oSketch.ProjectedCuts.Add();
 
             List<ObjectCollection> dataLine = splittoLinea(oProjectCut.SketchEntities);
 
@@ -682,25 +756,7 @@ namespace Nesting
         public static void setTexture(PartDocument oDoc)
         {
             SheetMetalComponentDefinition oCompDef = (SheetMetalComponentDefinition)oDoc.ComponentDefinition;
-
-            FaceCollection fcFront = oCompDef.Bends[1].FrontFaces[1].TangentiallyConnectedFaces;
-            fcFront.Add(oCompDef.Bends[1].FrontFaces[1]);
-
-            FaceCollection fcBack = oCompDef.Bends[1].BackFaces[1].TangentiallyConnectedFaces;
-            fcBack.Add(oCompDef.Bends[1].BackFaces[1]);
-
-            double area0 = 0;
-            foreach (Face oFace in fcFront)
-            {
-                area0 = area0+oFace.Evaluator.Area;
-            }
-
-            double area1 = 0;
-            foreach (Face oFace in fcBack)
-            {
-                area1 = area1 + oFace.Evaluator.Area;
-            }
-
+            
             Asset oAsset;
 
             try
@@ -717,21 +773,78 @@ namespace Nesting
                 oAsset = oAssetLib.CopyTo(oDoc);
             }
 
-            FaceCollection fc;
+            try
+            {
 
-            if (area0>area1)
-            {
-                fc = fcFront;
+                FaceCollection fcFront = oCompDef.Bends[1].FrontFaces[1].TangentiallyConnectedFaces;
+                fcFront.Add(oCompDef.Bends[1].FrontFaces[1]);
+
+                FaceCollection fcBack = oCompDef.Bends[1].BackFaces[1].TangentiallyConnectedFaces;
+                fcBack.Add(oCompDef.Bends[1].BackFaces[1]);
+
+                double area0 = 0;
+                foreach (Face oFace in fcFront)
+                {
+                    area0 = area0+oFace.Evaluator.Area;
+                }
+
+                double area1 = 0;
+                foreach (Face oFace in fcBack)
+                {
+                    area1 = area1 + oFace.Evaluator.Area;
+                }
+
+                FaceCollection fc;
+
+                if (area0>area1)
+                {
+                    fc = fcFront;
+                }
+                else
+                {
+                    fc = fcBack;
+                }
+
+                foreach (Face f in fc)
+                {
+                    f.Appearance = oAsset;
+                }
             }
-            else
+            catch
             {
-                fc = fcBack;
+                while (true)
+                {
+                    var form = MessageBox.Show("Colorazione lato bello", "Selezionare facce manualmente?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+                    if (form != DialogResult.Yes) break;
+                    FaceCollection fc = manualFaceSelect(oDoc);
+                    var result = MessageBox.Show("Colorazione lato bello", "Sicuro di impostare l'asset Raw Side per le facce selezionate?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Warning);
+
+                    if (result == DialogResult.Yes)
+                    {
+                        foreach (Face f in fc)
+                        {
+                            f.Appearance = oAsset;
+                        }
+                    }
+                }
+
             }
+        }
+        public static FaceCollection manualFaceSelect(PartDocument oDoc)
+        {
+            FaceCollection fc = iApp.TransientObjects.CreateFaceCollection();
+
+            Face testFace = iApp.CommandManager.Pick(SelectionFilterEnum.kPartFacePlanarFilter, "Seleziona una faccia planare");
+
+            fc = testFace.TangentiallyConnectedFaces;
+            fc.Add(testFace);
 
             foreach (Face f in fc)
             {
-                f.Appearance = oAsset;
+                coloroEntita(oDoc, 255, 0, 0, f);
             }
+
+            return fc;
         }
         public static Face getBiggestFace(PartDocument oDoc)
         {
